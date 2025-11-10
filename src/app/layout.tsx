@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import { WalletProvider } from '@/components/providers/WalletProvider'
+import { Header, Footer } from '@/components/layout'
 
 export const metadata: Metadata = {
   title: {
@@ -43,10 +44,14 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
-      <body className="antialiased">
+    <html lang="en" className="dark">
+      <body className="antialiased bg-gray-950 text-white min-h-screen flex flex-col">
         <WalletProvider>
-          {children}
+          <Header />
+          <main className="flex-1">
+            {children}
+          </main>
+          <Footer />
         </WalletProvider>
       </body>
     </html>
