@@ -61,8 +61,23 @@ Open [http://localhost:3000](http://localhost:3000) to view the application.
 - `npm run start` - Start production server
 - `npm run lint` - Run ESLint
 
+## Dependencies
+
+This project uses a comprehensive stack for building a multi-chain token launch platform:
+
+- **Solana Integration**: Full wallet adapter support with Phantom & Solflare
+- **Database**: Supabase for PostgreSQL, authentication, and real-time updates
+- **UI Components**: Radix UI primitives for accessible, customizable components
+- **Forms**: React Hook Form + Zod for performant, type-safe form handling
+- **Charts**: Recharts for data visualization
+- **Utilities**: Axios, date-fns, cryptographic libraries
+
+For detailed documentation about each dependency and usage examples, see [DEPENDENCIES.md](./DEPENDENCIES.md).
+
 ## Learn More
 
 - [Next.js Documentation](https://nextjs.org/docs)
 - [Tailwind CSS](https://tailwindcss.com/docs)
 - [TypeScript](https://www.typescriptlang.org/docs)
+- [Solana Documentation](https://docs.solana.com)
+- [Supabase Documentation](https://supabase.com/docs)
