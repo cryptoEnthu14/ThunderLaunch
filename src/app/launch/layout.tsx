@@ -174,7 +174,7 @@ export default function LaunchLayout({
                       </svg>
                       <p>
                         <strong className="text-white">Write a clear description</strong> -
-                        Explain your token's purpose and utility
+                        Explain your token&apos;s purpose and utility
                       </p>
                     </div>
 

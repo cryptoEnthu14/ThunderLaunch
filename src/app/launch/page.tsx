@@ -98,31 +98,37 @@ export default function LaunchPage() {
   /**
    * Run security check on token
    */
-  const runSecurityCheck = async (tokenId: string, mintAddress: string) => {
+  const runSecurityCheck = async (tokenId: string, mintAddress: string, tokenName: string, tokenSymbol: string) => {
     try {
-      updateProgress('running-security-check', 'Running security checks...', 90);
+      updateProgress('running-security-check', 'Running comprehensive security checks...', 90);
 
-      // Basic security check - in production, this would call actual security APIs
-      const riskScore = 15; // Low risk for newly created tokens
-      const findings: any[] = [];
-
-      // Create security check record
-      await createSecurityCheck({
-        token_id: tokenId,
-        token_address: mintAddress,
-        risk_level: 'low',
-        risk_score: riskScore,
-        findings: findings,
-        passed_checks: 4,
-        failed_checks: 0,
-        warning_checks: 0,
-        total_checks: 4,
-        security_score: 85,
-        is_contract_verified: true,
-        is_audited: false,
+      // Call security check API
+      const response = await fetch('/api/security/check', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          tokenAddress: mintAddress,
+          tokenId: tokenId,
+          tokenName: tokenName,
+          tokenSymbol: tokenSymbol,
+          marketCap: 0, // Initial market cap
+        }),
       });
 
+      if (!response.ok) {
+        throw new Error('Security check API call failed');
+      }
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || 'Security check failed');
+      }
+
       updateProgress('complete', 'Security check completed', 95);
+      console.log('Security check results:', result.data);
     } catch (error) {
       console.error('Security check failed:', error);
       // Don't fail the entire process if security check fails
@@ -220,7 +226,7 @@ export default function LaunchPage() {
       }
 
       // Step 4: Run security check
-      await runSecurityCheck(tokenRecord.data.id, mintAddress);
+      await runSecurityCheck(tokenRecord.data.id, mintAddress, data.name, data.symbol);
 
       // Step 5: Complete
       updateProgress('complete', 'Token created successfully!', 100);
