@@ -100,6 +100,19 @@ export {
 } from './uploadMetadata';
 
 // ============================================================================
+// Trading Functions
+// ============================================================================
+export {
+  executeBuy,
+  executeSell,
+  getTokenPrice,
+  getPoolLiquidity,
+  estimateBuyAmount,
+  estimateSellProceeds,
+  monitorTransaction,
+} from './trading';
+
+// ============================================================================
 // Types
 // ============================================================================
 export type {
@@ -117,3 +130,21 @@ export type {
 } from './types';
 
 export { TokenErrorType, TokenError } from './types';
+
+// ============================================================================
+// Trading Types
+// ============================================================================
+export type {
+  TradingProgressCallback,
+  TradeConfig,
+  BuyTradeConfig,
+  SellTradeConfig,
+  TradeExecutionResult,
+  TradePreview,
+  TokenPriceInfo,
+  PoolLiquidityInfo,
+  TradeMonitoringOptions,
+  TradingPlatformConfig,
+} from './tradingTypes';
+
+export { TransactionStatus, TradeErrorType, TradeError } from './tradingTypes';
