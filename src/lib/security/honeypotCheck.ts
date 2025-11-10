@@ -193,8 +193,12 @@ async function simulateBuyTransaction(
     transaction.recentBlockhash = blockhash;
     transaction.feePayer = testWallet.publicKey;
 
-    // Simulate the transaction
-    const simulation = await connection.simulateTransaction(transaction);
+    // Simulate the transaction without signature verification
+    // We skip sigVerify because this is a test transaction with a dummy wallet
+    // that doesn't have funds and won't be signed
+    const simulation = await connection.simulateTransaction(transaction, {
+      sigVerify: false,
+    });
 
     if (simulation.value.err) {
       return {
@@ -246,8 +250,12 @@ async function simulateSellTransaction(
     transaction.recentBlockhash = blockhash;
     transaction.feePayer = testWallet.publicKey;
 
-    // Simulate the transaction
-    const simulation = await connection.simulateTransaction(transaction);
+    // Simulate the transaction without signature verification
+    // We skip sigVerify because this is a test transaction with a dummy wallet
+    // that doesn't have funds and won't be signed
+    const simulation = await connection.simulateTransaction(transaction, {
+      sigVerify: false,
+    });
 
     if (simulation.value.err) {
       return {
