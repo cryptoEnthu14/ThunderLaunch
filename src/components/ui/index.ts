@@ -107,3 +107,11 @@ export type {
   NoTransactionsProps,
   ConnectionRequiredProps,
 } from './EmptyState';
+
+// Progress
+export { Progress } from './Progress';
+export type { ProgressProps } from './Progress';
+
+// Tabs
+export { Tabs, TabsList, TabsTrigger, TabsContent } from './Tabs';
+export type { TabsProps, TabsListProps, TabsTriggerProps, TabsContentProps } from './Tabs';

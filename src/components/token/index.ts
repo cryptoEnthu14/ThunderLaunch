@@ -21,3 +21,9 @@ export type { PriceChartProps, TimePeriod } from './PriceChart';
 
 export { TradeHistory, TradeHistorySkeleton } from './TradeHistory';
 export type { TradeHistoryProps } from './TradeHistory';
+
+export { TokenHeader } from './TokenHeader';
+export type { TokenHeaderProps } from './TokenHeader';
+
+export { TokenStats } from './TokenStats';
+export type { TokenStatsProps } from './TokenStats';
