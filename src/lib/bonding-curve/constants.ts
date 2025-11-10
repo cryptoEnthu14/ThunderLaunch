@@ -40,16 +40,16 @@ export const EXPONENTIAL_GROWTH_RATE = 0.0000001; // Growth coefficient
 export const PLATFORM_FEE_PERCENTAGE = 0.01; // 1.0%
 
 /**
- * Creator fee percentage (2.0%)
+ * Creator fee percentage (1.0%)
  * Goes to the token creator on each transaction
  */
-export const CREATOR_FEE_PERCENTAGE = 0.02; // 2.0%
+export const CREATOR_FEE_PERCENTAGE = 0.01; // 1.0%
 
 /**
  * Total fee percentage
  * Combined platform and creator fees
  */
-export const TOTAL_FEE_PERCENTAGE = PLATFORM_FEE_PERCENTAGE + CREATOR_FEE_PERCENTAGE; // 3.0%
+export const TOTAL_FEE_PERCENTAGE = PLATFORM_FEE_PERCENTAGE + CREATOR_FEE_PERCENTAGE; // 2.0%
 
 /**
  * Minimum trade amounts to prevent dust attacks and ensure meaningful transactions

@@ -73,8 +73,8 @@ export function exampleBuyTransaction() {
   console.log(`- Average Price: ${linearResult.averagePrice.toFixed(8)} SOL per token`);
   console.log(`- Base Cost: ${linearResult.baseCost.toFixed(6)} SOL`);
   console.log(`- Platform Fee: ${linearResult.platformFee.toFixed(6)} SOL (1%)`);
-  console.log(`- Creator Fee: ${linearResult.creatorFee.toFixed(6)} SOL (2%)`);
-  console.log(`- Total Fees: ${linearResult.totalFees.toFixed(6)} SOL (3%)`);
+  console.log(`- Creator Fee: ${linearResult.creatorFee.toFixed(6)} SOL (1%)`);
+  console.log(`- Total Fees: ${linearResult.totalFees.toFixed(6)} SOL (2%)`);
   console.log(`- Price Impact: ${(linearResult.priceImpact * 100).toFixed(2)}%`);
   console.log(`- New Supply: ${linearResult.newSupply.toLocaleString()}`);
 
@@ -85,7 +85,7 @@ export function exampleBuyTransaction() {
   console.log(`- Tokens Received: ${expResult.tokensReceived.toLocaleString()}`);
   console.log(`- Average Price: ${expResult.averagePrice.toFixed(8)} SOL per token`);
   console.log(`- Base Cost: ${expResult.baseCost.toFixed(6)} SOL`);
-  console.log(`- Total Fees: ${expResult.totalFees.toFixed(6)} SOL (3%)`);
+  console.log(`- Total Fees: ${expResult.totalFees.toFixed(6)} SOL (2%)`);
   console.log(`- Price Impact: ${(expResult.priceImpact * 100).toFixed(2)}%`);
 
   console.log('\n');
@@ -111,8 +111,8 @@ export function exampleSellTransaction() {
   console.log(`- Average Price: ${linearResult.averagePrice.toFixed(8)} SOL per token`);
   console.log(`- Base Proceeds: ${linearResult.baseProceeds.toFixed(6)} SOL`);
   console.log(`- Platform Fee: ${linearResult.platformFee.toFixed(6)} SOL (1%)`);
-  console.log(`- Creator Fee: ${linearResult.creatorFee.toFixed(6)} SOL (2%)`);
-  console.log(`- Total Fees: ${linearResult.totalFees.toFixed(6)} SOL (3%)`);
+  console.log(`- Creator Fee: ${linearResult.creatorFee.toFixed(6)} SOL (1%)`);
+  console.log(`- Total Fees: ${linearResult.totalFees.toFixed(6)} SOL (2%)`);
   console.log(`- Net Proceeds: ${linearResult.proceeds.toFixed(6)} SOL`);
   console.log(`- Price Impact: ${(linearResult.priceImpact * 100).toFixed(2)}%`);
   console.log(`- New Supply: ${linearResult.newSupply.toLocaleString()}`);
@@ -158,8 +158,8 @@ export function exampleFeeCalculations() {
 
     console.log(`Transaction Amount: ${amount.toFixed(2)} SOL`);
     console.log(`  - Platform Fee (1%): ${fees.platformFee.toFixed(4)} SOL`);
-    console.log(`  - Creator Fee (2%): ${fees.creatorFee.toFixed(4)} SOL`);
-    console.log(`  - Total Fee (3%): ${fees.totalFee.toFixed(4)} SOL`);
+    console.log(`  - Creator Fee (1%): ${fees.creatorFee.toFixed(4)} SOL`);
+    console.log(`  - Total Fee (2%): ${fees.totalFee.toFixed(4)} SOL`);
     console.log(`  - Net Amount: ${(amount - fees.totalFee).toFixed(4)} SOL\n`);
   });
 }

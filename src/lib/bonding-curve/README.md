@@ -65,14 +65,14 @@ const result = completeBuyCalculation(1.0, 0, BondingCurveType.LINEAR);
 console.log(result);
 // {
 //   totalCost: 1.0,
-//   tokensReceived: 194174,
+//   tokensReceived: 198020,
 //   platformFee: 0.01,
-//   creatorFee: 0.02,
-//   totalFees: 0.03,
-//   baseCost: 0.97,
-//   averagePrice: 0.00000499,
-//   priceImpact: 0.0497,
-//   newSupply: 194174
+//   creatorFee: 0.01,
+//   totalFees: 0.02,
+//   baseCost: 0.98,
+//   averagePrice: 0.00000495,
+//   priceImpact: 0.0495,
+//   newSupply: 198020
 // }
 ```
 
@@ -85,11 +85,11 @@ const result = completeSellCalculation(10_000, 50_000, BondingCurveType.LINEAR);
 
 console.log(result);
 // {
-//   proceeds: 0.004656, // SOL after fees
+//   proceeds: 0.004704, // SOL after fees
 //   tokensSold: 10000,
 //   platformFee: 0.000048,
-//   creatorFee: 0.000096,
-//   totalFees: 0.000144,
+//   creatorFee: 0.000048,
+//   totalFees: 0.000096,
 //   baseProceeds: 0.0048,
 //   averagePrice: 0.00000048,
 //   priceImpact: 0.10,
@@ -134,9 +134,9 @@ Calculate fee breakdown for a transaction.
 const fees = calculateFee(1.0);
 // {
 //   platformFee: 0.01,    // 1%
-//   creatorFee: 0.02,     // 2%
-//   totalFee: 0.03,       // 3%
-//   feePercentage: 0.03
+//   creatorFee: 0.01,     // 1%
+//   totalFee: 0.02,       // 2%
+//   feePercentage: 0.02
 // }
 ```
 
@@ -180,8 +180,8 @@ EXPONENTIAL_GROWTH_RATE = 0.0000001    // Exponential growth coefficient
 
 ```typescript
 PLATFORM_FEE_PERCENTAGE = 0.01         // 1.0%
-CREATOR_FEE_PERCENTAGE = 0.02          // 2.0%
-TOTAL_FEE_PERCENTAGE = 0.03            // 3.0%
+CREATOR_FEE_PERCENTAGE = 0.01          // 1.0%
+TOTAL_FEE_PERCENTAGE = 0.02            // 2.0%
 ```
 
 ### Trade Limits
