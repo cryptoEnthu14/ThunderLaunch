@@ -24,7 +24,7 @@
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { ArrowDownUp, Settings, AlertTriangle, TrendingUp, TrendingDown, Loader2 } from 'lucide-react';
+import { ArrowDownUp, Settings, AlertTriangle, TrendingUp, TrendingDown, Loader2, Wifi, WifiOff } from 'lucide-react';
 import { Card, CardBody } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -43,7 +43,9 @@ import {
   getCurrentPrice,
   BondingCurveType,
 } from '@/lib/bonding-curve';
+import { useRealtimeTokens } from '@/hooks/useRealtimeTokens';
 import type { TradeType } from '@/types/trade';
+import type { Token } from '@/types/token';
 
 export interface TradingPanelProps {
   /** Token address */
@@ -80,8 +82,8 @@ export function TradingPanel({
   tokenAddress,
   tokenSymbol,
   tokenName,
-  currentPrice,
-  currentSupply,
+  currentPrice: initialPrice,
+  currentSupply: initialSupply,
   curveType = BondingCurveType.LINEAR,
   solBalance = 0,
   tokenBalance = 0,
@@ -100,6 +102,40 @@ export function TradingPanel({
   const [showSlippageSettings, setShowSlippageSettings] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+
+  // Real-time state
+  const [currentPrice, setCurrentPrice] = useState(initialPrice);
+  const [currentSupply, setCurrentSupply] = useState(initialSupply);
+  const [priceChange24h, setPriceChange24h] = useState(0);
+  const [showPriceUpdate, setShowPriceUpdate] = useState(false);
+
+  // Real-time token updates
+  const { updatedTokens, isConnected } = useRealtimeTokens({
+    maxUpdates: 10,
+    onTokenUpdate: (token: Token) => {
+      // Only update if it's the current token
+      if (token.mint_address === tokenAddress) {
+        const oldPrice = currentPrice;
+        setCurrentPrice(token.current_price);
+        setPriceChange24h(token.price_change_24h);
+
+        // Show price update animation if price changed
+        if (oldPrice !== token.current_price) {
+          setShowPriceUpdate(true);
+          setTimeout(() => setShowPriceUpdate(false), 2000);
+        }
+      }
+    },
+  });
+
+  // Update price and supply when props change
+  useEffect(() => {
+    setCurrentPrice(initialPrice);
+  }, [initialPrice]);
+
+  useEffect(() => {
+    setCurrentSupply(initialSupply);
+  }, [initialSupply]);
 
   // Calculate trade details in real-time
   const tradeCalculation = useMemo(() => {
@@ -203,6 +239,28 @@ export function TradingPanel({
     <>
       <Card variant="elevated" className={cn('overflow-hidden', className)}>
         <CardBody className="p-0">
+          {/* Real-time Connection Status */}
+          <div className="px-4 py-2 bg-gray-800/50 border-b border-gray-700 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              {isConnected ? (
+                <>
+                  <Wifi className="w-3 h-3 text-green-500" />
+                  <span className="text-xs text-green-500">Live Prices</span>
+                </>
+              ) : (
+                <>
+                  <WifiOff className="w-3 h-3 text-gray-500" />
+                  <span className="text-xs text-gray-500">Offline</span>
+                </>
+              )}
+            </div>
+            {showPriceUpdate && (
+              <div className="flex items-center gap-1 text-xs animate-pulse">
+                <span className="text-blue-400">Price updated</span>
+              </div>
+            )}
+          </div>
+
           {/* Trade Type Tabs */}
           <div className="flex border-b border-gray-700">
             <button
@@ -315,9 +373,22 @@ export function TradingPanel({
               <div className="space-y-2 p-4 bg-gray-800/50 rounded-lg border border-gray-700">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-400">Current Price</span>
-                  <span className="text-white font-medium">
-                    {currentPrice.toFixed(6)} SOL
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className={cn(
+                      "font-medium transition-colors",
+                      showPriceUpdate && "text-blue-400"
+                    )}>
+                      {currentPrice.toFixed(6)} SOL
+                    </span>
+                    {priceChange24h !== 0 && (
+                      <span className={cn(
+                        "text-xs",
+                        priceChange24h > 0 ? "text-green-500" : "text-red-500"
+                      )}>
+                        {priceChange24h > 0 ? '+' : ''}{priceChange24h.toFixed(2)}%
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 <div className="flex justify-between text-sm">

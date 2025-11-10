@@ -29,16 +29,17 @@
  * ```
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { ExternalLink, TrendingUp, TrendingDown, Shield, AlertTriangle } from 'lucide-react';
+import { ExternalLink, TrendingUp, TrendingDown, Shield, AlertTriangle, Wifi } from 'lucide-react';
 import { Card, CardBody } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { SecurityBadge, SecurityWarning } from '@/components/security';
 import { SecurityReport } from '@/components/security/SecurityReport';
 import { useSecurityCheck } from '@/hooks/useSecurityCheck';
+import { useRealtimeTokens } from '@/hooks/useRealtimeTokens';
 import { cn } from '@/lib/utils';
 import type { Token, Chain } from '@/types/token';
 
@@ -113,7 +114,7 @@ function getChainConfig(chain: Chain): { label: string; className: string } {
  * Displays token information with security badge and report functionality
  */
 export function TokenCard({
-  token,
+  token: initialToken,
   showSecurityBadge = true,
   showSecurityWarning = true,
   variant = 'default',
@@ -122,6 +123,27 @@ export function TokenCard({
 }: TokenCardProps) {
   const [showSecurityReport, setShowSecurityReport] = useState(false);
   const [securityAcknowledged, setSecurityAcknowledged] = useState(false);
+  const [token, setToken] = useState(initialToken);
+  const [showLiveIndicator, setShowLiveIndicator] = useState(false);
+
+  // Real-time token updates
+  const { updatedTokens, isConnected } = useRealtimeTokens({
+    maxUpdates: 1,
+    onTokenUpdate: (updatedToken: Token) => {
+      // Only update if it's the same token
+      if (updatedToken.id === initialToken.id || updatedToken.mint_address === initialToken.mint_address) {
+        setToken(updatedToken);
+        // Show live indicator briefly
+        setShowLiveIndicator(true);
+        setTimeout(() => setShowLiveIndicator(false), 2000);
+      }
+    },
+  });
+
+  // Update token when initialToken changes
+  useEffect(() => {
+    setToken(initialToken);
+  }, [initialToken]);
 
   // Fetch security check data
   const { securityData, securityCheck, isLoading: isLoadingSecurityCheck } = useSecurityCheck({
@@ -211,8 +233,16 @@ export function TokenCard({
 
               {/* Price */}
               <div className="text-right">
-                <div className="text-base font-semibold text-white">
-                  {formatPrice(token.current_price || 0)}
+                <div className="flex items-center gap-1 justify-end">
+                  <div className={cn(
+                    "text-base font-semibold text-white transition-colors",
+                    showLiveIndicator && "text-blue-400"
+                  )}>
+                    {formatPrice(token.current_price || 0)}
+                  </div>
+                  {isConnected && (
+                    <Wifi className="w-3 h-3 text-green-500" title="Live prices" />
+                  )}
                 </div>
                 {token.market_cap !== undefined && token.market_cap !== null && (
                   <div className="text-xs text-gray-400">
@@ -326,8 +356,16 @@ export function TokenCard({
             <div className="grid grid-cols-2 gap-4 mb-4">
               {/* Price */}
               <div>
-                <div className="text-xs text-gray-500 mb-1">Price</div>
-                <div className="text-lg font-bold text-white">
+                <div className="text-xs text-gray-500 mb-1 flex items-center gap-1">
+                  Price
+                  {isConnected && (
+                    <Wifi className="w-2.5 h-2.5 text-green-500" title="Live prices" />
+                  )}
+                </div>
+                <div className={cn(
+                  "text-lg font-bold text-white transition-colors",
+                  showLiveIndicator && "text-blue-400"
+                )}>
                   {formatPrice(token.current_price || 0)}
                 </div>
                 {token.price_change_24h !== undefined && token.price_change_24h !== null && (
@@ -350,7 +388,10 @@ export function TokenCard({
               {/* Market Cap */}
               <div>
                 <div className="text-xs text-gray-500 mb-1">Market Cap</div>
-                <div className="text-lg font-bold text-white">
+                <div className={cn(
+                  "text-lg font-bold text-white transition-colors",
+                  showLiveIndicator && "text-blue-400"
+                )}>
                   {formatNumber(token.market_cap || 0)}
                 </div>
               </div>
@@ -359,7 +400,10 @@ export function TokenCard({
               {token.volume_24h !== undefined && token.volume_24h !== null && (
                 <div>
                   <div className="text-xs text-gray-500 mb-1">Volume (24h)</div>
-                  <div className="text-lg font-bold text-white">
+                  <div className={cn(
+                    "text-lg font-bold text-white transition-colors",
+                    showLiveIndicator && "text-blue-400"
+                  )}>
                     {formatNumber(token.volume_24h)}
                   </div>
                 </div>

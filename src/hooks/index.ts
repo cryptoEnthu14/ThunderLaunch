@@ -6,3 +6,18 @@
 
 export { useWalletBalance } from './useWalletBalance';
 export type { WalletBalanceState } from './useWalletBalance';
+
+export { useRealtimeTokens } from './useRealtimeTokens';
+export type {
+  TokenUpdate,
+  RealtimeTokensState,
+  UseRealtimeTokensOptions,
+} from './useRealtimeTokens';
+
+export { useRealtimeTrades } from './useRealtimeTrades';
+export type {
+  TradeUpdate,
+  TradeMetrics,
+  RealtimeTradesState,
+  UseRealtimeTradesOptions,
+} from './useRealtimeTrades';
