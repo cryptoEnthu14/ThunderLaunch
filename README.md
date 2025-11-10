@@ -42,12 +42,24 @@ Usage in Tailwind:
 
 ## Getting Started
 
-Install dependencies:
+### 1. Install dependencies
 ```bash
 npm install
 ```
 
-Run the development server:
+### 2. Set up environment variables
+```bash
+cp .env.local.example .env.local
+```
+
+Edit `.env.local` and add your configuration:
+- Supabase credentials (get from [Supabase Dashboard](https://app.supabase.com))
+- Solana RPC endpoint
+- Other configuration values
+
+See [ENVIRONMENT.md](./ENVIRONMENT.md) for detailed setup instructions.
+
+### 3. Run the development server
 ```bash
 npm run dev
 ```
