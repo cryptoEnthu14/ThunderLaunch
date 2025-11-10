@@ -1,18 +1,148 @@
-# Build and Release Folders
-bin-debug/
-bin-release/
-[Oo]bj/
-[Bb]in/
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
-# Other files and folders
+# =============================================================================
+# DEPENDENCIES
+# =============================================================================
+/node_modules
+/.pnp
+.pnp.js
+.yarn/install-state.gz
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# =============================================================================
+# ENVIRONMENT VARIABLES
+# =============================================================================
+# Local environment variables (NEVER commit these!)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Keep example file
+!.env.local.example
+!.env.example
+
+# =============================================================================
+# NEXT.JS
+# =============================================================================
+/.next/
+/out/
+.next
+out
+
+# =============================================================================
+# PRODUCTION BUILD
+# =============================================================================
+/build
+/dist
+*.tsbuildinfo
+
+# =============================================================================
+# TESTING
+# =============================================================================
+/coverage
+/.nyc_output
+*.lcov
+.jest-cache
+
+# =============================================================================
+# MISC
+# =============================================================================
+.DS_Store
+*.pem
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.project
+.classpath
 .settings/
+*.sublime-workspace
+*.sublime-project
 
-# Executables
-*.swf
-*.air
-*.ipa
-*.apk
+# =============================================================================
+# LOGS
+# =============================================================================
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
 
-# Project files, i.e. `.project`, `.actionScriptProperties` and `.flexProperties`
-# should NOT be excluded as they contain compiler settings and other important
-# information for Eclipse / Flash Builder.
+# =============================================================================
+# TYPESCRIPT
+# =============================================================================
+*.tsbuildinfo
+next-env.d.ts
+
+# =============================================================================
+# VERCEL
+# =============================================================================
+.vercel
+
+# =============================================================================
+# SENTRY
+# =============================================================================
+.sentryclirc
+
+# =============================================================================
+# TEMPORARY FILES
+# =============================================================================
+.cache
+.temp
+.tmp
+*.tmp
+*.temp
+
+# =============================================================================
+# OS SPECIFIC
+# =============================================================================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+*~
+.directory
+.Trash-*
+
+# =============================================================================
+# SOLANA/CRYPTO
+# =============================================================================
+# Wallet keys (NEVER commit private keys!)
+*.key
+*.keypair
+keypair.json
+id.json
+wallet.json
+
+# =============================================================================
+# ANALYTICS & MONITORING
+# =============================================================================
+.lighthouseci
+
+# =============================================================================
+# DATABASE
+# =============================================================================
+*.sqlite
+*.sqlite3
+*.db
+*.db-journal
