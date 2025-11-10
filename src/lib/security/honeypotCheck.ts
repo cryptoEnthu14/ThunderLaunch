@@ -196,9 +196,7 @@ async function simulateBuyTransaction(
     // Simulate the transaction without signature verification
     // We skip sigVerify because this is a test transaction with a dummy wallet
     // that doesn't have funds and won't be signed
-    const simulation = await connection.simulateTransaction(transaction, {
-      sigVerify: false,
-    });
+    const simulation = await connection.simulateTransaction(transaction);
 
     if (simulation.value.err) {
       return {
@@ -253,9 +251,7 @@ async function simulateSellTransaction(
     // Simulate the transaction without signature verification
     // We skip sigVerify because this is a test transaction with a dummy wallet
     // that doesn't have funds and won't be signed
-    const simulation = await connection.simulateTransaction(transaction, {
-      sigVerify: false,
-    });
+    const simulation = await connection.simulateTransaction(transaction);
 
     if (simulation.value.err) {
       return {

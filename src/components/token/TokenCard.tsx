@@ -35,11 +35,12 @@ import Image from 'next/image';
 import { ExternalLink, TrendingUp, TrendingDown, Shield, AlertTriangle } from 'lucide-react';
 import { Card, CardBody } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { Badge } from '@/components/ui/Badge';
 import { SecurityBadge, SecurityWarning } from '@/components/security';
 import { SecurityReport } from '@/components/security/SecurityReport';
 import { useSecurityCheck } from '@/hooks/useSecurityCheck';
 import { cn } from '@/lib/utils';
-import type { Token } from '@/types/token';
+import type { Token, Chain } from '@/types/token';
 
 export interface TokenCardProps {
   /** Token data */
@@ -83,6 +84,27 @@ function formatPrice(value: number): string {
     return `$${value.toFixed(4)}`;
   }
   return `$${value.toFixed(2)}`;
+}
+
+/**
+ * Get chain badge configuration
+ */
+function getChainConfig(chain: Chain): { label: string; className: string } {
+  const configs = {
+    solana: {
+      label: 'SOL',
+      className: 'bg-purple-500/20 text-purple-300 border-purple-500/30',
+    },
+    base: {
+      label: 'BASE',
+      className: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
+    },
+    bnb: {
+      label: 'BNB',
+      className: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30',
+    },
+  };
+  return configs[chain];
 }
 
 /**
@@ -161,6 +183,14 @@ export function TokenCard({
                 </div>
                 <div className="flex items-center gap-2 text-sm text-gray-400">
                   <span className="font-mono">{token.symbol}</span>
+                  <span
+                    className={cn(
+                      'px-1.5 py-0.5 text-[10px] font-semibold rounded border uppercase',
+                      getChainConfig(token.chain).className
+                    )}
+                  >
+                    {getChainConfig(token.chain).label}
+                  </span>
                   {token.price_change_24h !== undefined && token.price_change_24h !== null && (
                     <span
                       className={cn(
@@ -259,6 +289,14 @@ export function TokenCard({
                   <h3 className="text-xl font-bold text-white truncate">
                     {token.name}
                   </h3>
+                  <span
+                    className={cn(
+                      'px-2 py-1 text-xs font-semibold rounded border uppercase flex-shrink-0',
+                      getChainConfig(token.chain).className
+                    )}
+                  >
+                    {getChainConfig(token.chain).label}
+                  </span>
                   {showSecurityBadge && securityCheck && !isLoadingSecurityCheck && (
                     <SecurityBadge
                       riskLevel={securityCheck.risk_level}
