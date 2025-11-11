@@ -21,3 +21,9 @@ export type {
   RealtimeTradesState,
   UseRealtimeTradesOptions,
 } from './useRealtimeTrades';
+
+export { useNotifications } from './useNotifications';
+export type {
+  NotificationPreferences,
+  NotificationType,
+} from './useNotifications';

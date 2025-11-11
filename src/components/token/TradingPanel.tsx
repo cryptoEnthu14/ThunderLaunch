@@ -44,6 +44,7 @@ import {
   BondingCurveType,
 } from '@/lib/bonding-curve';
 import { useRealtimeTokens } from '@/hooks/useRealtimeTokens';
+import { toast } from '@/lib/notifications/toast';
 import type { TradeType } from '@/types/trade';
 import type { Token } from '@/types/token';
 
@@ -214,11 +215,30 @@ export function TradingPanel({
     if (tradeError || !tradeCalculation) return;
 
     setIsProcessing(true);
+
     try {
+      // Show loading toast
+      const loadingToastId = toast.loading(
+        `Processing ${tradeType}...`,
+        'Please wait while your transaction is being processed'
+      );
+
       // TODO: Implement actual blockchain transaction
       await new Promise((resolve) => setTimeout(resolve, 2000)); // Simulate transaction
 
       const amount = parseFloat(inputAmount);
+
+      // Dismiss loading toast
+      toast.dismiss(loadingToastId);
+
+      // Show success toast
+      toast.success(
+        `${tradeType === 'buy' ? 'Buy' : 'Sell'} successful!`,
+        tradeType === 'buy'
+          ? `Received ${tradeCalculation.tokensReceived ? tradeCalculation.tokensReceived.toLocaleString() : 0} ${tokenSymbol}`
+          : `Received ${tradeCalculation.proceeds ? tradeCalculation.proceeds.toFixed(4) : 0} SOL`
+      );
+
       onTradeExecuted?.(tradeType, amount);
 
       // Reset form
@@ -226,7 +246,12 @@ export function TradingPanel({
       setShowConfirmModal(false);
     } catch (error) {
       console.error('Trade execution error:', error);
-      // TODO: Show error toast
+
+      // Show error toast
+      toast.error(
+        'Transaction failed',
+        error instanceof Error ? error.message : 'An unknown error occurred'
+      );
     } finally {
       setIsProcessing(false);
     }

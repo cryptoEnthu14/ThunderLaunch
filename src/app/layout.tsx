@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import { WalletProvider } from '@/components/providers/WalletProvider'
 import { Header, Footer } from '@/components/layout'
+import { Toaster } from '@/components/ui/Toaster'
 
 export const metadata: Metadata = {
   title: {
@@ -52,6 +53,7 @@ export default function RootLayout({
             {children}
           </main>
           <Footer />
+          <Toaster />
         </WalletProvider>
       </body>
     </html>
