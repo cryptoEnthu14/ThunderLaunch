@@ -1,10 +1,32 @@
 /**
  * Solana Trading Execution Functions
  *
- * Comprehensive trading functions for buying and selling tokens
- * using bonding curve pricing on Solana blockchain.
+ * ⚠️ CRITICAL WARNING - NON-FUNCTIONAL IMPLEMENTATION ⚠️
  *
- * @example Execute a buy trade
+ * This trading implementation has a CRITICAL P1 BUG that prevents execution:
+ *
+ * PROBLEM:
+ * - Buy flow uses `createMintToInstruction` with poolAddress as mint authority
+ * - Sell flow uses `SystemProgram.transfer` from poolAddress
+ * - Only the user's wallet signs via signTransaction()
+ * - The poolAddress does NOT sign, causing all transactions to FAIL
+ *
+ * IMPACT:
+ * - 100% trade failure rate
+ * - Users lose gas fees on failed transactions
+ * - Platform appears broken
+ *
+ * SOLUTION REQUIRED:
+ * This must be replaced with a Solana program (smart contract) that:
+ * - Uses Program Derived Addresses (PDAs) as authority
+ * - Controls mint authority and pool funds
+ * - Executes trades atomically on-chain
+ *
+ * See docs/TRADING_IMPLEMENTATION.md for detailed solutions.
+ *
+ * DO NOT use this code in production until fixed.
+ *
+ * @example Execute a buy trade (CURRENTLY NON-FUNCTIONAL)
  * ```typescript
  * import { executeBuy } from '@/lib/solana/trading';
  * import { useWallet } from '@solana/wallet-adapter-react';
@@ -96,6 +118,12 @@ export async function executeBuy(
   config: BuyTradeConfig,
   signTransaction: SignTransaction
 ): Promise<TradeExecutionResult> {
+  // ⚠️ CRITICAL: This function WILL FAIL - Missing pool authority signature
+  // The createMintToInstruction at line ~162 requires poolAddress to sign,
+  // but only userWallet signs this transaction. All buys will fail.
+  // See docs/TRADING_IMPLEMENTATION.md for solutions.
+  console.error('[executeBuy] WARNING: This implementation is non-functional. Requires Solana program.');
+
   const {
     tokenMint,
     userWallet,
@@ -156,15 +184,17 @@ export async function executeBuy(
     );
 
     // Add instruction to mint tokens to user
-    // Note: In production, this would be handled by a program
-    // For now, this is a simplified version
+    // ⚠️ CRITICAL BUG: This instruction WILL FAIL
+    // poolAddress is specified as the mint authority, but it does NOT sign this transaction.
+    // Only userWallet signs via signTransaction(). The SPL Token program will reject this.
+    // SOLUTION: Use a Solana program with PDA authority (see docs/TRADING_IMPLEMENTATION.md)
     transaction.add(
       createMintToInstruction(
         tokenMint,
         userTokenAccount,
-        poolAddress, // Mint authority (in production, this would be the program)
+        poolAddress, // ❌ BUG: Needs to sign but doesn't - only userWallet signs
         Math.floor(calculation.tokensReceived),
-        []
+        [] // ❌ No signers provided for poolAddress
       )
     );
 
@@ -247,6 +277,12 @@ export async function executeSell(
   config: SellTradeConfig,
   signTransaction: SignTransaction
 ): Promise<TradeExecutionResult> {
+  // ⚠️ CRITICAL: This function WILL FAIL - Missing pool authority signature
+  // The SystemProgram.transfer at line ~312 requires poolAddress to sign,
+  // but only userWallet signs this transaction. All sells will fail.
+  // See docs/TRADING_IMPLEMENTATION.md for solutions.
+  console.error('[executeSell] WARNING: This implementation is non-functional. Requires Solana program.');
+
   const {
     tokenMint,
     userWallet,
@@ -308,9 +344,13 @@ export async function executeSell(
     );
 
     // Add instruction to transfer SOL from pool to user
+    // ⚠️ CRITICAL BUG: This instruction WILL FAIL
+    // poolAddress is the sender, but it does NOT sign this transaction.
+    // Only userWallet signs via signTransaction(). The System Program will reject this.
+    // SOLUTION: Use a Solana program with PDA authority (see docs/TRADING_IMPLEMENTATION.md)
     transaction.add(
       SystemProgram.transfer({
-        fromPubkey: poolAddress,
+        fromPubkey: poolAddress, // ❌ BUG: Needs to sign but doesn't - only userWallet signs
         toPubkey: userWallet,
         lamports: Math.floor(calculation.proceeds * LAMPORTS_PER_SOL),
       })
