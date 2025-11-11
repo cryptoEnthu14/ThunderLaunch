@@ -27,3 +27,6 @@ export type { TokenHeaderProps } from './TokenHeader';
 
 export { TokenStats } from './TokenStats';
 export type { TokenStatsProps } from './TokenStats';
+
+export { WatchlistButton } from './WatchlistButton';
+export type { WatchlistButtonProps } from './WatchlistButton';

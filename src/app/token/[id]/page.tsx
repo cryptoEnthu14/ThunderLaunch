@@ -188,14 +188,6 @@ export default function TokenDetailPage() {
   };
 
   /**
-   * Handle watchlist
-   */
-  const handleWatchlist = () => {
-    // TODO: Implement watchlist functionality
-    alert('Watchlist feature coming soon!');
-  };
-
-  /**
    * Handle report
    */
   const handleReport = () => {
@@ -244,7 +236,6 @@ export default function TokenDetailPage() {
           token={token}
           securityCheck={securityCheck || undefined}
           onShare={handleShare}
-          onWatchlist={handleWatchlist}
           onReport={handleReport}
         />
 

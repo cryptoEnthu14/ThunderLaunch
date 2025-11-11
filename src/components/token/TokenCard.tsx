@@ -38,6 +38,7 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { SecurityBadge, SecurityWarning } from '@/components/security';
 import { SecurityReport } from '@/components/security/SecurityReport';
+import { WatchlistButton } from '@/components/token/WatchlistButton';
 import { useSecurityCheck } from '@/hooks/useSecurityCheck';
 import { useRealtimeTokens } from '@/hooks/useRealtimeTokens';
 import { cn } from '@/lib/utils';
@@ -231,24 +232,33 @@ export function TokenCard({
                 </div>
               </div>
 
-              {/* Price */}
-              <div className="text-right">
-                <div className="flex items-center gap-1 justify-end">
-                  <div className={cn(
-                    "text-base font-semibold text-white transition-colors",
-                    showLiveIndicator && "text-blue-400"
-                  )}>
-                    {formatPrice(token.current_price || 0)}
+              {/* Price and Watchlist */}
+              <div className="flex items-start gap-2">
+                <div className="text-right">
+                  <div className="flex items-center gap-1 justify-end">
+                    <div className={cn(
+                      "text-base font-semibold text-white transition-colors",
+                      showLiveIndicator && "text-blue-400"
+                    )}>
+                      {formatPrice(token.current_price || 0)}
+                    </div>
+                    {isConnected && (
+                      <Wifi className="w-3 h-3 text-green-500" title="Live prices" />
+                    )}
                   </div>
-                  {isConnected && (
-                    <Wifi className="w-3 h-3 text-green-500" title="Live prices" />
+                  {token.market_cap !== undefined && token.market_cap !== null && (
+                    <div className="text-xs text-gray-400">
+                      {formatNumber(token.market_cap)}
+                    </div>
                   )}
                 </div>
-                {token.market_cap !== undefined && token.market_cap !== null && (
-                  <div className="text-xs text-gray-400">
-                    {formatNumber(token.market_cap)}
-                  </div>
-                )}
+                <WatchlistButton
+                  tokenId={token.id}
+                  tokenAddress={token.mint_address}
+                  tokenName={token.name}
+                  variant="icon"
+                  size="sm"
+                />
               </div>
             </div>
           </CardBody>
@@ -428,6 +438,14 @@ export function TokenCard({
                   <ExternalLink className="w-4 h-4 ml-2" />
                 </Button>
               </Link>
+
+              <WatchlistButton
+                tokenId={token.id}
+                tokenAddress={token.mint_address}
+                tokenName={token.name}
+                variant="icon"
+                size="md"
+              />
 
               {showSecurityBadge && securityCheck && !isLoadingSecurityCheck && (
                 <Button

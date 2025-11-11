@@ -42,6 +42,7 @@ import {
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { SecurityBadge } from '@/components/security';
+import { WatchlistButton } from '@/components/token/WatchlistButton';
 import { cn } from '@/lib/utils';
 import type { Token, Chain } from '@/types/token';
 import type { SecurityCheck } from '@/types/security';
@@ -55,8 +56,6 @@ export interface TokenHeaderProps {
   isLoading?: boolean;
   /** Callback when share is clicked */
   onShare?: () => void;
-  /** Callback when watchlist is clicked */
-  onWatchlist?: () => void;
   /** Callback when report is clicked */
   onReport?: () => void;
 }
@@ -132,7 +131,6 @@ export function TokenHeader({
   securityCheck,
   isLoading = false,
   onShare,
-  onWatchlist,
   onReport,
 }: TokenHeaderProps) {
   const [copied, setCopied] = useState(false);
@@ -304,15 +302,15 @@ export function TokenHeader({
             <Share2 className="w-4 h-4 mr-2" />
             Share
           </Button>
-          <Button
-            variant="secondary"
+          <WatchlistButton
+            tokenId={token.id}
+            tokenAddress={token.mint_address}
+            tokenName={token.name}
+            variant="default"
             size="md"
-            onClick={onWatchlist}
+            showLabel={true}
             className="flex-1 lg:flex-initial"
-          >
-            <Star className="w-4 h-4 mr-2" />
-            Watchlist
-          </Button>
+          />
           <Button
             variant="ghost"
             size="md"

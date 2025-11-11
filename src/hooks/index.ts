@@ -27,3 +27,9 @@ export type {
   NotificationPreferences,
   NotificationType,
 } from './useNotifications';
+
+export { useWatchlist } from './useWatchlist';
+export type {
+  UseWatchlistOptions,
+  UseWatchlistReturn,
+} from './useWatchlist';
