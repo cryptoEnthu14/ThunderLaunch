@@ -217,6 +217,29 @@ export function useRealtimeTrades(
   const subscriptionRef = useRef<{ unsubscribe: () => void } | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isUnmountedRef = useRef<boolean>(false);
+  const callbacksRef = useRef<{
+    onNewTrade?: UseRealtimeTradesOptions['onNewTrade'];
+    onTradeUpdate?: UseRealtimeTradesOptions['onTradeUpdate'];
+    onTradeConfirmed?: UseRealtimeTradesOptions['onTradeConfirmed'];
+    onTradeFailed?: UseRealtimeTradesOptions['onTradeFailed'];
+    onConnectionChange?: UseRealtimeTradesOptions['onConnectionChange'];
+  }>({
+    onNewTrade,
+    onTradeUpdate,
+    onTradeConfirmed,
+    onTradeFailed,
+    onConnectionChange,
+  });
+
+  useEffect(() => {
+    callbacksRef.current = {
+      onNewTrade,
+      onTradeUpdate,
+      onTradeConfirmed,
+      onTradeFailed,
+      onConnectionChange,
+    };
+  }, [onNewTrade, onTradeUpdate, onTradeConfirmed, onTradeFailed, onConnectionChange]);
 
   /**
    * Request notification permission
@@ -255,6 +278,13 @@ export function useRealtimeTrades(
         return newUpdates.slice(0, maxUpdates);
       });
 
+      const {
+        onNewTrade: onNewTradeCallback,
+        onTradeUpdate: onTradeUpdateCallback,
+        onTradeConfirmed: onTradeConfirmedCallback,
+        onTradeFailed: onTradeFailedCallback,
+      } = callbacksRef.current;
+
       // Handle different event types
       switch (eventType) {
         case 'INSERT':
@@ -277,7 +307,7 @@ export function useRealtimeTrades(
             }
 
             // Call callback
-            onNewTrade?.(newData);
+            onNewTradeCallback?.(newData);
 
             // Show notification
             if (enableNotifications) {
@@ -303,7 +333,7 @@ export function useRealtimeTrades(
 
               // Call callback
               if (oldStatus !== 'confirmed') {
-                onTradeConfirmed?.(newData);
+                onTradeConfirmedCallback?.(newData);
 
                 // Show notification
                 if (enableNotifications) {
@@ -315,7 +345,7 @@ export function useRealtimeTrades(
               setPendingTrades((prev) => prev.filter((t) => t.id !== newData.id));
 
               // Call callback
-              onTradeFailed?.(newData);
+              onTradeFailedCallback?.(newData);
 
               // Show notification
               if (enableNotifications) {
@@ -334,7 +364,7 @@ export function useRealtimeTrades(
             }
 
             // Call update callback
-            onTradeUpdate?.(newData, oldData);
+            onTradeUpdateCallback?.(newData, oldData);
           }
           break;
 
@@ -347,15 +377,7 @@ export function useRealtimeTrades(
           break;
       }
     },
-    [
-      maxUpdates,
-      maxRecentTrades,
-      enableNotifications,
-      onNewTrade,
-      onTradeUpdate,
-      onTradeConfirmed,
-      onTradeFailed,
-    ]
+    [maxUpdates, maxRecentTrades, enableNotifications]
   );
 
   /**
@@ -369,19 +391,33 @@ export function useRealtimeTrades(
   /**
    * Update connection status
    */
-  const updateConnectionStatus = useCallback(
-    (connected: boolean) => {
-      if (isUnmountedRef.current) return;
-      setIsConnected(connected);
-      onConnectionChange?.(connected);
-    },
-    [onConnectionChange]
-  );
+  const updateConnectionStatus = useCallback((connected: boolean) => {
+    if (isUnmountedRef.current) return;
+    setIsConnected(connected);
+    callbacksRef.current.onConnectionChange?.(connected);
+  }, []);
+
+  /**
+   * Unsubscribe from trade changes
+   */
+  const unsubscribe = useCallback(() => {
+    if (subscriptionRef.current) {
+      subscriptionRef.current.unsubscribe();
+      subscriptionRef.current = null;
+    }
+
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
+    }
+
+    updateConnectionStatus(false);
+  }, [updateConnectionStatus]);
 
   /**
    * Subscribe to trade changes
    */
-  const subscribe = useCallback(() => {
+  const subscribe = useCallback(function subscribeCallback() {
     if (isUnmountedRef.current) return;
 
     try {
@@ -414,7 +450,8 @@ export function useRealtimeTrades(
         if (autoReconnect && !isUnmountedRef.current) {
           reconnectTimeoutRef.current = setTimeout(() => {
             console.log('[useRealtimeTrades] Attempting to reconnect...');
-            reconnect();
+            unsubscribe();
+            subscribeCallback();
           }, reconnectInterval);
         }
       });
@@ -447,24 +484,8 @@ export function useRealtimeTrades(
     updateConnectionStatus,
     autoReconnect,
     reconnectInterval,
+    unsubscribe,
   ]);
-
-  /**
-   * Unsubscribe from trade changes
-   */
-  const unsubscribe = useCallback(() => {
-    if (subscriptionRef.current) {
-      subscriptionRef.current.unsubscribe();
-      subscriptionRef.current = null;
-    }
-
-    if (reconnectTimeoutRef.current) {
-      clearTimeout(reconnectTimeoutRef.current);
-      reconnectTimeoutRef.current = null;
-    }
-
-    updateConnectionStatus(false);
-  }, [updateConnectionStatus]);
 
   /**
    * Manually reconnect

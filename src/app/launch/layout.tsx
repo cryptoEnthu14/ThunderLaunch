@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import type { Metadata } from 'next';
 import React from 'react';
 
@@ -32,12 +33,12 @@ export default function LaunchLayout({
             <div className="py-4">
               {/* Breadcrumbs */}
               <nav className="flex items-center space-x-2 text-sm mb-4">
-                <a
+                <Link
                   href="/"
                   className="text-gray-400 hover:text-white transition-colors"
                 >
                   Home
-                </a>
+                </Link>
                 <svg
                   className="w-4 h-4 text-gray-600"
                   fill="none"

@@ -63,12 +63,31 @@ export interface ToastData extends ToastOptions {
 // GLOBAL STATE
 // =============================================================================
 
-type ToastListener = (toasts: ToastData[]) => void;
+type ToastListener = () => void;
 
 class ToastManager {
   private toasts: ToastData[] = [];
   private listeners: Set<ToastListener> = new Set();
   private counter = 0;
+
+  /**
+   * Set the next toast snapshot and notify listeners when it changed.
+   */
+  private setToasts(next: ToastData[]) {
+    if (this.toasts === next) {
+      return;
+    }
+
+    this.toasts = next;
+    this.notify();
+  }
+
+  /**
+   * Update helper that receives the current snapshot and must return the next one.
+   */
+  private updateToasts(updater: (current: ToastData[]) => ToastData[]) {
+    this.setToasts(updater(this.toasts));
+  }
 
   /**
    * Subscribe to toast changes
@@ -84,7 +103,7 @@ class ToastManager {
    * Notify all listeners of state change
    */
   private notify() {
-    this.listeners.forEach((listener) => listener([...this.toasts]));
+    this.listeners.forEach((listener) => listener());
   }
 
   /**
@@ -99,8 +118,7 @@ class ToastManager {
       createdAt: Date.now(),
     };
 
-    this.toasts.push(newToast);
-    this.notify();
+    this.updateToasts((toasts) => [...toasts, newToast]);
 
     // Auto-dismiss after duration
     if (toast.duration !== Infinity) {
@@ -116,51 +134,87 @@ class ToastManager {
    * Dismiss a toast by ID
    */
   dismiss(id: string) {
-    const toast = this.toasts.find((t) => t.id === id);
-    if (toast) {
-      toast.open = false;
-      this.notify();
+    let scheduledRemoval = false;
 
-      // Remove from array after animation
-      setTimeout(() => {
-        this.toasts = this.toasts.filter((t) => t.id !== id);
-        this.notify();
-      }, 300);
+    this.updateToasts((toasts) => {
+      let found = false;
+      const next = toasts.map((toast) => {
+        if (toast.id === id && toast.open) {
+          found = true;
+          return { ...toast, open: false };
+        }
+        return toast;
+      });
+
+      if (found) {
+        scheduledRemoval = true;
+        return next;
+      }
+
+      return toasts;
+    });
+
+    if (!scheduledRemoval) {
+      return;
     }
+
+    // Remove from array after animation
+    setTimeout(() => {
+      this.updateToasts((toasts) => {
+        const next = toasts.filter((toast) => toast.id !== id);
+        return next.length === toasts.length ? toasts : next;
+      });
+    }, 300);
   }
 
   /**
    * Dismiss all toasts
    */
   dismissAll() {
-    this.toasts.forEach((toast) => {
-      toast.open = false;
-    });
-    this.notify();
+    if (!this.toasts.length) {
+      return;
+    }
+
+    const dismissedIds = new Set(this.toasts.map((toast) => toast.id));
+
+    this.updateToasts((toasts) =>
+      toasts.map((toast) =>
+        dismissedIds.has(toast.id) ? { ...toast, open: false } : toast
+      )
+    );
 
     // Remove all after animation
     setTimeout(() => {
-      this.toasts = [];
-      this.notify();
+      this.updateToasts((toasts) => {
+        const next = toasts.filter((toast) => !dismissedIds.has(toast.id));
+        return next.length === toasts.length ? toasts : next;
+      });
     }, 300);
   }
 
   /**
    * Get all toasts
    */
-  getToasts() {
-    return [...this.toasts];
+  getToasts(): ReadonlyArray<ToastData> {
+    return this.toasts;
   }
 
   /**
    * Update a toast
    */
   update(id: string, updates: Partial<Omit<ToastData, 'id' | 'createdAt'>>) {
-    const toast = this.toasts.find((t) => t.id === id);
-    if (toast) {
-      Object.assign(toast, updates);
-      this.notify();
-    }
+    this.updateToasts((toasts) => {
+      let updated = false;
+      const next = toasts.map((toast) => {
+        if (toast.id === id) {
+          updated = true;
+          return { ...toast, ...updates };
+        }
+        return toast;
+      });
+
+      return updated ? next : toasts;
+    });
   }
 }
 

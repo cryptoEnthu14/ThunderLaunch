@@ -14,7 +14,7 @@
  * ```
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, startTransition } from 'react';
 import type { SecurityScanResult } from '@/lib/security';
 import type { SecurityCheck } from '@/types/security';
 
@@ -277,18 +277,26 @@ export function useSecurityCheckNeeded(
 
   useEffect(() => {
     if (!tokenAddress) {
-      setIsNeeded(false);
+      startTransition(() => setIsNeeded(false));
       return;
     }
+
+    let isActive = true;
 
     // Check if we have cached results
     fetch(`/api/security/check?tokenAddress=${tokenAddress}`)
       .then((response) => {
-        setIsNeeded(!response.ok);
+        if (!isActive) return;
+        startTransition(() => setIsNeeded(!response.ok));
       })
       .catch(() => {
-        setIsNeeded(true);
+        if (!isActive) return;
+        startTransition(() => setIsNeeded(true));
       });
+
+    return () => {
+      isActive = false;
+    };
   }, [tokenAddress]);
 
   return isNeeded;

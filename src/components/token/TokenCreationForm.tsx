@@ -19,6 +19,7 @@
  */
 
 import React, { useState, useRef } from 'react';
+import Image from 'next/image';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { tokenCreationSchema, TokenCreationFormData } from '@/lib/validation/tokenSchema';
@@ -307,10 +308,13 @@ export function TokenCreationForm({
                   <div className="flex items-start gap-4">
                     {/* Image Preview */}
                     <div className="relative w-32 h-32 rounded-lg overflow-hidden bg-gray-800 border border-gray-700 flex-shrink-0">
-                      <img
+                      <Image
                         src={imagePreview}
                         alt="Token preview"
-                        className="w-full h-full object-cover"
+                        fill
+                        sizes="128px"
+                        className="object-cover"
+                        unoptimized
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
                     </div>

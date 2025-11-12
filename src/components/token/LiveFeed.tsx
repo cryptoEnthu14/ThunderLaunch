@@ -12,7 +12,7 @@
 
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useRealtimeTokens } from '@/hooks/useRealtimeTokens';
 import { useRealtimeTrades } from '@/hooks/useRealtimeTrades';
 import type { Token } from '@/types/token';
@@ -67,6 +67,7 @@ export function LiveFeed({
   // State
   const [autoScroll, setAutoScroll] = useState(initialAutoScroll);
   const [isPaused, setIsPaused] = useState(false);
+  const [currentTime, setCurrentTime] = useState(() => Date.now());
   const feedRef = useRef<HTMLDivElement>(null);
 
   // Real-time hooks
@@ -133,15 +134,22 @@ export function LiveFeed({
     }
   }, [activities, autoScroll, isPaused]);
 
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(Date.now());
+    }, 30_000);
+
+    return () => clearInterval(interval);
+  }, []);
+
   // Connection status
   const isConnected = tokensConnected && tradesConnected;
   const isLoading = tokensLoading || tradesLoading;
 
   // Format time ago
-  const formatTimeAgo = (timestamp: string) => {
-    const now = Date.now();
+  const formatTimeAgo = useCallback((timestamp: string) => {
     const time = new Date(timestamp).getTime();
-    const diff = now - time;
+    const diff = currentTime - time;
 
     const seconds = Math.floor(diff / 1000);
     const minutes = Math.floor(seconds / 60);
@@ -152,7 +160,7 @@ export function LiveFeed({
     if (hours > 0) return `${hours}h ago`;
     if (minutes > 0) return `${minutes}m ago`;
     return `${seconds}s ago`;
-  };
+  }, [currentTime]);
 
   // Render token launch item
   const renderTokenLaunch = (token: Token) => (

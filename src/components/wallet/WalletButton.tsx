@@ -14,6 +14,7 @@
  */
 
 import React, { FC, useState, useEffect, useRef } from 'react';
+import Image from 'next/image';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { WalletBalance } from './WalletBalance';
@@ -192,7 +193,14 @@ export const WalletButton: FC<WalletButtonProps> = ({
       >
         {/* Wallet Icon */}
         {wallet?.adapter.icon && (
-          <img src={wallet.adapter.icon} alt={wallet.adapter.name} className="w-5 h-5 rounded" />
+          <Image
+            src={wallet.adapter.icon}
+            alt={wallet.adapter.name}
+            width={20}
+            height={20}
+            className="w-5 h-5 rounded"
+            unoptimized
+          />
         )}
 
         <div className="flex flex-col items-start gap-0.5">
@@ -226,9 +234,16 @@ export const WalletButton: FC<WalletButtonProps> = ({
           {/* Wallet Info */}
           <div className="px-4 py-3 bg-gray-900 border-b border-gray-700">
             <div className="flex items-center gap-2 mb-2">
-              {wallet?.adapter.icon && (
-                <img src={wallet.adapter.icon} alt={wallet.adapter.name} className="w-6 h-6 rounded" />
-              )}
+                {wallet?.adapter.icon && (
+                  <Image
+                    src={wallet.adapter.icon}
+                    alt={wallet.adapter.name}
+                    width={24}
+                    height={24}
+                    className="w-6 h-6 rounded"
+                    unoptimized
+                  />
+                )}
               <span className="text-sm font-semibold text-white">{wallet?.adapter.name}</span>
             </div>
             <p className="font-mono text-xs text-gray-400 break-all">

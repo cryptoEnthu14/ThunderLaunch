@@ -314,7 +314,7 @@ export async function toggleWatchlist(
 // EXPORTS
 // =============================================================================
 
-export default {
+const watchlistService = {
   addToWatchlist,
   removeFromWatchlist,
   isInWatchlist,
@@ -322,3 +322,5 @@ export default {
   getWatchlistCount,
   toggleWatchlist,
 };
+
+export default watchlistService;

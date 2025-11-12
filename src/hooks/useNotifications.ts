@@ -147,6 +147,11 @@ async function requestBrowserPermission(): Promise<boolean> {
 // HOOK
 // =============================================================================
 
+const EMPTY_TOASTS: ReadonlyArray<ToastData> = [];
+
+const subscribeToToasts = (callback: () => void) => toastManager.subscribe(callback);
+const getServerSnapshot = () => EMPTY_TOASTS;
+
 /**
  * useNotifications Hook
  */
@@ -154,11 +159,16 @@ export function useNotifications() {
   // State
   const [preferences, setPreferences] = useState<NotificationPreferences>(loadPreferences);
 
-  // Subscribe to toast manager
-  const toasts = useSyncExternalStore(
-    (callback) => toastManager.subscribe(callback),
+  const getSnapshot = useCallback(
     () => toastManager.getToasts(),
-    () => []
+    []
+  );
+
+  // Subscribe to toast manager
+  const toasts = useSyncExternalStore<ReadonlyArray<ToastData>>(
+    subscribeToToasts,
+    getSnapshot,
+    getServerSnapshot
   );
 
   /**

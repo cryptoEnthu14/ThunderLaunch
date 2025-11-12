@@ -12,7 +12,7 @@
  * ```
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, startTransition } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { WalletButton } from '@/components/wallet';
@@ -52,8 +52,9 @@ export const Header: React.FC = () => {
 
   // Close mobile menu when route changes
   useEffect(() => {
-    setMobileMenuOpen(false);
-  }, [pathname]);
+    if (!mobileMenuOpen) return;
+    startTransition(() => setMobileMenuOpen(false));
+  }, [pathname, mobileMenuOpen]);
 
   // Prevent body scroll when mobile menu is open
   useEffect(() => {

@@ -526,7 +526,7 @@ export async function uploadAvatar(
 // EXPORTS
 // =============================================================================
 
-export default {
+const userProfileService = {
   getUserProfile,
   getUserProfileById,
   upsertUserProfile,
@@ -537,3 +537,5 @@ export default {
   isUsernameAvailable,
   uploadAvatar,
 };
+
+export default userProfileService;

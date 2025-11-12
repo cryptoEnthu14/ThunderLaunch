@@ -115,6 +115,26 @@ export function useRealtimeTokens(
   const subscriptionRef = useRef<{ unsubscribe: () => void } | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isUnmountedRef = useRef<boolean>(false);
+  const callbacksRef = useRef<{
+    onNewToken?: UseRealtimeTokensOptions['onNewToken'];
+    onTokenUpdate?: UseRealtimeTokensOptions['onTokenUpdate'];
+    onTokenDelete?: UseRealtimeTokensOptions['onTokenDelete'];
+    onConnectionChange?: UseRealtimeTokensOptions['onConnectionChange'];
+  }>({
+    onNewToken,
+    onTokenUpdate,
+    onTokenDelete,
+    onConnectionChange,
+  });
+
+  useEffect(() => {
+    callbacksRef.current = {
+      onNewToken,
+      onTokenUpdate,
+      onTokenDelete,
+      onConnectionChange,
+    };
+  }, [onNewToken, onTokenUpdate, onTokenDelete, onConnectionChange]);
 
   /**
    * Handle token updates from Supabase
@@ -142,6 +162,12 @@ export function useRealtimeTokens(
         return newUpdates.slice(0, maxUpdates);
       });
 
+      const {
+        onNewToken: onNewTokenCallback,
+        onTokenUpdate: onTokenUpdateCallback,
+        onTokenDelete: onTokenDeleteCallback,
+      } = callbacksRef.current;
+
       // Handle different event types
       switch (eventType) {
         case 'INSERT':
@@ -150,7 +176,7 @@ export function useRealtimeTokens(
               const filtered = [newData, ...prev].slice(0, maxUpdates);
               return filtered;
             });
-            onNewToken?.(newData);
+            onNewTokenCallback?.(newData);
           }
           break;
 
@@ -161,7 +187,7 @@ export function useRealtimeTokens(
               const filtered = prev.filter((t) => t.id !== newData.id);
               return [newData, ...filtered].slice(0, maxUpdates);
             });
-            onTokenUpdate?.(newData, oldData);
+            onTokenUpdateCallback?.(newData, oldData);
           }
           break;
 
@@ -170,30 +196,44 @@ export function useRealtimeTokens(
             // Remove from lists
             setNewTokens((prev) => prev.filter((t) => t.id !== oldData.id));
             setUpdatedTokens((prev) => prev.filter((t) => t.id !== oldData.id));
-            onTokenDelete?.(oldData);
+            onTokenDeleteCallback?.(oldData);
           }
           break;
       }
     },
-    [maxUpdates, onNewToken, onTokenUpdate, onTokenDelete]
+    [maxUpdates]
   );
 
   /**
    * Update connection status
    */
-  const updateConnectionStatus = useCallback(
-    (connected: boolean) => {
-      if (isUnmountedRef.current) return;
-      setIsConnected(connected);
-      onConnectionChange?.(connected);
-    },
-    [onConnectionChange]
-  );
+  const updateConnectionStatus = useCallback((connected: boolean) => {
+    if (isUnmountedRef.current) return;
+    setIsConnected(connected);
+    callbacksRef.current.onConnectionChange?.(connected);
+  }, []);
+
+  /**
+   * Unsubscribe from token changes
+   */
+  const unsubscribe = useCallback(() => {
+    if (subscriptionRef.current) {
+      subscriptionRef.current.unsubscribe();
+      subscriptionRef.current = null;
+    }
+
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
+    }
+
+    updateConnectionStatus(false);
+  }, [updateConnectionStatus]);
 
   /**
    * Subscribe to token changes
    */
-  const subscribe = useCallback(() => {
+  const subscribe = useCallback(function subscribeCallback() {
     if (isUnmountedRef.current) return;
 
     try {
@@ -226,7 +266,8 @@ export function useRealtimeTokens(
         if (autoReconnect && !isUnmountedRef.current) {
           reconnectTimeoutRef.current = setTimeout(() => {
             console.log('[useRealtimeTokens] Attempting to reconnect...');
-            reconnect();
+            unsubscribe();
+            subscribeCallback();
           }, reconnectInterval);
         }
       });
@@ -258,24 +299,8 @@ export function useRealtimeTokens(
     updateConnectionStatus,
     autoReconnect,
     reconnectInterval,
+    unsubscribe,
   ]);
-
-  /**
-   * Unsubscribe from token changes
-   */
-  const unsubscribe = useCallback(() => {
-    if (subscriptionRef.current) {
-      subscriptionRef.current.unsubscribe();
-      subscriptionRef.current = null;
-    }
-
-    if (reconnectTimeoutRef.current) {
-      clearTimeout(reconnectTimeoutRef.current);
-      reconnectTimeoutRef.current = null;
-    }
-
-    updateConnectionStatus(false);
-  }, [updateConnectionStatus]);
 
   /**
    * Manually reconnect

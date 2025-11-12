@@ -988,8 +988,7 @@ CREATE INDEX idx_trades_token_created ON trades(token_id, created_at DESC);
 CREATE INDEX idx_trades_wallet_created ON trades(wallet_address, created_at DESC);
 
 -- Price history queries
-CREATE INDEX idx_price_history_token_range ON price_history(token_id, timestamp DESC)
-  WHERE timestamp > NOW() - INTERVAL '30 days';
+CREATE INDEX idx_price_history_token_range ON price_history(token_id, timestamp DESC);
 
 -- =============================================================================
 -- COMMENTS

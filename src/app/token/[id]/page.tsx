@@ -17,7 +17,7 @@
  * Route: /token/[id]
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/Tabs';
 import { Container } from '@/components/layout';
@@ -67,28 +67,37 @@ export default function TokenDetailPage() {
     enabled: !!token,
   });
 
-  // Fetch token data
-  useEffect(() => {
-    fetchToken();
-  }, [tokenId]);
+  const loadPriceHistory = useCallback(async (id: string, mintAddress: string) => {
+    try {
+      const params = new URLSearchParams({
+        tokenId: id,
+        tokenAddress: mintAddress,
+      });
+      const response = await fetch(`/api/price-history?${params.toString()}`);
 
-  // Fetch trades when token is loaded
-  useEffect(() => {
-    if (token) {
-      fetchTrades();
+      if (!response.ok) {
+        throw new Error('Failed to fetch price history');
+      }
+
+      const data = await response.json();
+
+      if (data.success) {
+        setPriceHistory(data.data || []);
+      } else {
+        setPriceHistory([]);
+      }
+    } catch (err) {
+      console.error('Error fetching price history:', err);
+      setPriceHistory([]);
     }
-  }, [token]);
+  }, []);
 
-  /**
-   * Fetch token from API or database
-   */
-  async function fetchToken() {
+  // Fetch token data
+  const fetchToken = useCallback(async () => {
     setIsLoading(true);
     setError(null);
 
     try {
-      // TODO: Replace with actual API call
-      // For now, this is a placeholder
       const response = await fetch(`/api/tokens/${tokenId}`);
 
       if (!response.ok) {
@@ -99,8 +108,7 @@ export default function TokenDetailPage() {
 
       if (data.success) {
         setToken(data.data);
-        // Generate mock price history (replace with actual data)
-        setPriceHistory(generateMockPriceHistory(data.data.current_price));
+        await loadPriceHistory(data.data.id, data.data.mint_address);
       } else {
         setError(data.error || 'Failed to load token');
       }
@@ -110,12 +118,14 @@ export default function TokenDetailPage() {
     } finally {
       setIsLoading(false);
     }
-  }
+  }, [tokenId, loadPriceHistory]);
 
-  /**
-   * Fetch trades for this token
-   */
-  async function fetchTrades() {
+  useEffect(() => {
+    fetchToken();
+  }, [fetchToken]);
+
+  // Fetch trades when token is loaded
+  const fetchTrades = useCallback(async () => {
     if (!token) return;
 
     try {
@@ -131,37 +141,15 @@ export default function TokenDetailPage() {
     } catch (err) {
       console.error('Error fetching trades:', err);
     }
-  }
+  }, [token]);
+
+  useEffect(() => {
+    fetchTrades();
+  }, [fetchTrades]);
 
   /**
-   * Generate mock price history
+   * Fetch token from API or database
    */
-  function generateMockPriceHistory(currentPrice: number): TokenPriceHistory[] {
-    const points: TokenPriceHistory[] = [];
-    const now = Date.now();
-    const hourInMs = 60 * 60 * 1000;
-    let price = currentPrice * 0.8; // Start lower
-
-    for (let i = 24; i >= 0; i--) {
-      const variance = (Math.random() - 0.5) * 0.1;
-      price = price * (1 + variance);
-      const volume = Math.random() * 10000;
-      const marketCap = price * (token?.total_supply ? parseFloat(token.total_supply) : 1000000);
-
-      points.push({
-        token_id: token?.id || '',
-        timestamp: new Date(now - i * hourInMs).toISOString(),
-        price_usd: price,
-        price_native: price / 100, // Assuming 1 SOL = $100
-        volume,
-        market_cap: marketCap,
-        liquidity: marketCap * 0.1,
-      });
-    }
-
-    return points;
-  }
-
   /**
    * Handle share
    */

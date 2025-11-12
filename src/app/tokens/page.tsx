@@ -13,7 +13,7 @@
  * - Loading and empty states
  */
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Search, Filter, SlidersHorizontal, ArrowUpDown } from 'lucide-react';
 import { TokenCard, TokenCardSkeleton } from '@/components/token';
@@ -78,14 +78,7 @@ export default function TokensPage() {
   const ITEMS_PER_PAGE = 20;
 
   // Fetch tokens
-  useEffect(() => {
-    fetchTokens();
-  }, [sortBy, filters, currentPage]);
-
-  /**
-   * Fetch tokens from API
-   */
-  async function fetchTokens() {
+  const fetchTokens = useCallback(async () => {
     setIsLoading(true);
 
     try {
@@ -136,7 +129,11 @@ export default function TokensPage() {
     } finally {
       setIsLoading(false);
     }
-  }
+  }, [sortBy, filters, currentPage]);
+
+  useEffect(() => {
+    fetchTokens();
+  }, [fetchTokens]);
 
   /**
    * Get sort field for API
