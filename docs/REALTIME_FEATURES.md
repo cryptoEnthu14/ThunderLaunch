@@ -216,6 +216,7 @@ The real-time features use Supabase's built-in PostgreSQL change data capture (C
 1. **Subscription Setup**
    ```typescript
    const subscription = subscribeToTable('tokens', handleChange, 'status=eq.active');
+   subscription.subscribe();
    ```
 
 2. **Event Types**

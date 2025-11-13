@@ -1,0 +1,19 @@
+[features]
+seeds = false
+skip-lint = false
+
+[programs.localnet]
+plp = "6avMmcRVikm9UKbVjWKFvS7tYaaVRWRTPPNXvtPffhwD"
+
+[registry]
+url = "https://api.apr.dev"
+
+[provider]
+cluster = "localnet"
+wallet = "~/.config/solana/id.json"
+
+[scripts]
+test = "npx ts-node -r tsconfig-paths/register tests/plp.ts"
+
+[toolchain]
+anchor_version = "0.31.1"

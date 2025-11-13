@@ -12,8 +12,9 @@
  */
 
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { supabase, subscribeToTable } from '@/lib/supabase/client';
-import type { Trade, TradeType } from '@/types/trade';
+import { subscribeToTable, type TableSubscription } from '@/lib/supabase/client';
+import type { Trade, TradeType, TransactionPriority } from '@/types/trade';
+import type { Tables } from '@/lib/supabase/database.types';
 
 // =============================================================================
 // TYPES
@@ -214,7 +215,7 @@ export function useRealtimeTrades(
   const [error, setError] = useState<Error | null>(null);
 
   // Refs
-  const subscriptionRef = useRef<{ unsubscribe: () => void } | null>(null);
+  const subscriptionRef = useRef<TableSubscription | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isUnmountedRef = useRef<boolean>(false);
   const callbacksRef = useRef<{
@@ -258,17 +259,24 @@ export function useRealtimeTrades(
   const handleTradeChange = useCallback(
     (payload: {
       eventType: 'INSERT' | 'UPDATE' | 'DELETE';
-      new: Trade | null;
-      old: Trade | null;
+      new: Tables<'trades'>['Row'] | null;
+      old: Tables<'trades'>['Row'] | null;
     }) => {
       if (isUnmountedRef.current) return;
 
       const { eventType, new: newData, old: oldData } = payload;
+      const normalizedNew = newData ? normalizeTradeRow(newData) : null;
+      const normalizedOld = oldData ? normalizeTradeRow(oldData) : null;
+      const tradeData = normalizedNew || normalizedOld;
+
+      if (!tradeData) {
+        return;
+      }
 
       // Create update object
       const update: TradeUpdate = {
         eventType,
-        trade: (newData || oldData) as Trade,
+        trade: tradeData,
         timestamp: new Date().toISOString(),
       };
 
@@ -288,68 +296,68 @@ export function useRealtimeTrades(
       // Handle different event types
       switch (eventType) {
         case 'INSERT':
-          if (newData) {
+          if (normalizedNew) {
             // Add to recent trades if confirmed
-            if (newData.status === 'confirmed') {
+            if (normalizedNew.status === 'confirmed') {
               setRecentTrades((prev) => {
-                const filtered = [newData, ...prev].slice(0, maxRecentTrades);
+                const filtered = [normalizedNew, ...prev].slice(0, maxRecentTrades);
                 return filtered;
               });
             }
 
             // Add to pending trades if pending
             if (
-              newData.status === 'pending' ||
-              newData.status === 'submitted' ||
-              newData.status === 'processing'
+              normalizedNew.status === 'pending' ||
+              normalizedNew.status === 'submitted' ||
+              normalizedNew.status === 'processing'
             ) {
-              setPendingTrades((prev) => [newData, ...prev]);
+              setPendingTrades((prev) => [normalizedNew, ...prev]);
             }
 
             // Call callback
-            onNewTradeCallback?.(newData);
+            onNewTradeCallback?.(normalizedNew);
 
             // Show notification
             if (enableNotifications) {
-              showTradeNotification(newData, 'new');
+              showTradeNotification(normalizedNew, 'new');
             }
           }
           break;
 
         case 'UPDATE':
-          if (newData) {
-            const oldStatus = oldData?.status;
-            const newStatus = newData.status;
+          if (normalizedNew) {
+            const oldStatus = normalizedOld?.status;
+            const newStatus = normalizedNew.status;
 
             // Update recent trades
             if (newStatus === 'confirmed') {
               setRecentTrades((prev) => {
-                const filtered = prev.filter((t) => t.id !== newData.id);
-                return [newData, ...filtered].slice(0, maxRecentTrades);
+                const filtered = prev.filter((t) => t.id !== normalizedNew.id);
+                return [normalizedNew, ...filtered].slice(0, maxRecentTrades);
               });
 
               // Remove from pending
-              setPendingTrades((prev) => prev.filter((t) => t.id !== newData.id));
+              setPendingTrades((prev) => prev.filter((t) => t.id !== normalizedNew.id));
 
               // Call callback
               if (oldStatus !== 'confirmed') {
-                onTradeConfirmedCallback?.(newData);
+                onTradeConfirmedCallback?.(normalizedNew);
 
                 // Show notification
                 if (enableNotifications) {
-                  showTradeNotification(newData, 'confirmed');
+                  showTradeNotification(normalizedNew, 'confirmed');
                 }
               }
             } else if (newStatus === 'failed') {
               // Remove from pending
-              setPendingTrades((prev) => prev.filter((t) => t.id !== newData.id));
+              setPendingTrades((prev) => prev.filter((t) => t.id !== normalizedNew.id));
 
               // Call callback
-              onTradeFailedCallback?.(newData);
+              onTradeFailedCallback?.(normalizedNew);
 
               // Show notification
               if (enableNotifications) {
-                showTradeNotification(newData, 'failed');
+                showTradeNotification(normalizedNew, 'failed');
               }
             } else if (
               newStatus === 'pending' ||
@@ -358,22 +366,20 @@ export function useRealtimeTrades(
             ) {
               // Update pending trades
               setPendingTrades((prev) => {
-                const filtered = prev.filter((t) => t.id !== newData.id);
-                return [newData, ...filtered];
+                const filtered = prev.filter((t) => t.id !== normalizedNew.id);
+                return [normalizedNew, ...filtered];
               });
             }
 
             // Call update callback
-            onTradeUpdateCallback?.(newData, oldData);
+            onTradeUpdateCallback?.(normalizedNew, normalizedOld);
           }
           break;
 
         case 'DELETE':
-          if (oldData) {
-            // Remove from all lists
-            setRecentTrades((prev) => prev.filter((t) => t.id !== oldData.id));
-            setPendingTrades((prev) => prev.filter((t) => t.id !== oldData.id));
-          }
+          // Remove from all lists
+          setRecentTrades((prev) => prev.filter((t) => t.id !== tradeData.id));
+          setPendingTrades((prev) => prev.filter((t) => t.id !== tradeData.id));
           break;
       }
     },
@@ -437,13 +443,12 @@ export function useRealtimeTrades(
       subscriptionRef.current = subscription;
 
       // Check connection status
-      const channel = supabase.channel('trades_changes');
-      channel.on('system', { event: 'connected' }, () => {
+      subscription.channel.on('system', { event: 'connected' }, () => {
         updateConnectionStatus(true);
         setIsLoading(false);
       });
 
-      channel.on('system', { event: 'disconnected' }, () => {
+      subscription.channel.on('system', { event: 'disconnected' }, () => {
         updateConnectionStatus(false);
 
         // Auto-reconnect if enabled
@@ -456,11 +461,13 @@ export function useRealtimeTrades(
         }
       });
 
-      channel.on('system', { event: 'error' }, (error) => {
+      subscription.channel.on('system', { event: 'error' }, (error) => {
         console.error('[useRealtimeTrades] Connection error:', error);
         setError(new Error('Real-time connection error'));
         updateConnectionStatus(false);
       });
+
+      subscription.subscribe();
 
       // Assume connected after subscription
       setTimeout(() => {
@@ -542,3 +549,38 @@ export function useRealtimeTrades(
  * Export default for convenience
  */
 export default useRealtimeTrades;
+
+// =============================================================================
+// HELPERS
+// =============================================================================
+
+function normalizeTradeRow(row: Tables<'trades'>['Row']): Trade {
+  return {
+    ...row,
+    user_id: row.user_id ?? undefined,
+    actual_slippage: row.actual_slippage ?? undefined,
+    transaction_signature: row.transaction_signature ?? undefined,
+    block_number: row.block_number ?? undefined,
+    dex: row.dex ?? undefined,
+    pool_address: row.pool_address ?? undefined,
+    estimated_completion: row.estimated_completion ?? undefined,
+    error_message: row.error_message ?? undefined,
+    metadata: (row.metadata ?? undefined) as Record<string, unknown> | undefined,
+    submitted_at: row.submitted_at ?? undefined,
+    confirmed_at: row.confirmed_at ?? undefined,
+    priority: normalizePriority(row.priority),
+  };
+}
+
+function normalizePriority(value: string): TransactionPriority {
+  const normalized = value.toLowerCase() as TransactionPriority;
+  switch (normalized) {
+    case 'slow':
+    case 'fast':
+    case 'ultra':
+      return normalized;
+    case 'medium':
+    default:
+      return 'medium';
+  }
+}

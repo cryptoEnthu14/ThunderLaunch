@@ -9,6 +9,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { validateApiKey } from '@/lib/security';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -75,6 +76,17 @@ function getClientIp(request: NextRequest): string {
  */
 export async function POST(request: NextRequest) {
   try {
+    const authResult = validateApiKey(request);
+    if (!authResult.valid) {
+      return NextResponse.json(
+        {
+          error: 'Unauthorized',
+          message: authResult.message,
+        },
+        { status: authResult.status ?? 401 }
+      );
+    }
+
     // Check rate limit
     const clientIp = getClientIp(request);
     if (!checkRateLimit(clientIp)) {

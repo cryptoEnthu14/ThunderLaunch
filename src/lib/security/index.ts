@@ -57,3 +57,6 @@ export {
   LiquidityCheckError,
 } from './liquidityCheck';
 export type { LiquidityPool, LockContract } from './liquidityCheck';
+
+// Auth helpers
+export { validateApiKey } from './auth';

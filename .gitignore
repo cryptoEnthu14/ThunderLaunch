@@ -133,7 +133,10 @@ $RECYCLE.BIN/
 keypair.json
 id.json
 wallet.json
-
+programs/plp/target/
+/target/deploy/
+/test-ledger/
+/vendor/
 # =============================================================================
 # ANALYTICS & MONITORING
 # =============================================================================

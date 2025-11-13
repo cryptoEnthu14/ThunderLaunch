@@ -11,8 +11,9 @@
  */
 
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { supabase, subscribeToTable } from '@/lib/supabase/client';
-import type { Token } from '@/types/token';
+import { subscribeToTable, type TableSubscription } from '@/lib/supabase/client';
+import type { Token, TokenStandard } from '@/types/token';
+import type { Tables } from '@/lib/supabase/database.types';
 
 // =============================================================================
 // TYPES
@@ -112,7 +113,7 @@ export function useRealtimeTokens(
   const [error, setError] = useState<Error | null>(null);
 
   // Refs
-  const subscriptionRef = useRef<{ unsubscribe: () => void } | null>(null);
+  const subscriptionRef = useRef<TableSubscription | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isUnmountedRef = useRef<boolean>(false);
   const callbacksRef = useRef<{
@@ -126,6 +127,7 @@ export function useRealtimeTokens(
     onTokenDelete,
     onConnectionChange,
   });
+  const filtersRef = useRef<{ chain?: string; status?: string }>({ chain, status });
 
   useEffect(() => {
     callbacksRef.current = {
@@ -136,23 +138,50 @@ export function useRealtimeTokens(
     };
   }, [onNewToken, onTokenUpdate, onTokenDelete, onConnectionChange]);
 
+  useEffect(() => {
+    filtersRef.current = { chain, status };
+  }, [chain, status]);
+
   /**
    * Handle token updates from Supabase
    */
   const handleTokenChange = useCallback(
     (payload: {
       eventType: 'INSERT' | 'UPDATE' | 'DELETE';
-      new: Token | null;
-      old: Token | null;
+      new: Tables<'tokens'>['Row'] | null;
+      old: Tables<'tokens'>['Row'] | null;
     }) => {
       if (isUnmountedRef.current) return;
 
       const { eventType, new: newData, old: oldData } = payload;
+      const normalizedNew = newData ? normalizeTokenRow(newData) : null;
+      const normalizedOld = oldData ? normalizeTokenRow(oldData) : null;
+      const tokenData = normalizedNew || normalizedOld;
+
+      if (!tokenData) {
+        return;
+      }
+
+      const { chain: chainFilter, status: statusFilter } = filtersRef.current;
+
+      const statusMatch =
+        !statusFilter ||
+        normalizedNew?.status === statusFilter ||
+        normalizedOld?.status === statusFilter;
+
+      const chainMatch =
+        !chainFilter ||
+        normalizedNew?.chain === chainFilter ||
+        normalizedOld?.chain === chainFilter;
+
+      if (!statusMatch || !chainMatch) {
+        return;
+      }
 
       // Create update object
       const update: TokenUpdate = {
         eventType,
-        token: (newData || oldData) as Token,
+        token: tokenData,
         timestamp: new Date().toISOString(),
       };
 
@@ -171,33 +200,30 @@ export function useRealtimeTokens(
       // Handle different event types
       switch (eventType) {
         case 'INSERT':
-          if (newData) {
+          if (normalizedNew) {
             setNewTokens((prev) => {
-              const filtered = [newData, ...prev].slice(0, maxUpdates);
+              const filtered = [normalizedNew, ...prev].slice(0, maxUpdates);
               return filtered;
             });
-            onNewTokenCallback?.(newData);
+            onNewTokenCallback?.(normalizedNew);
           }
           break;
 
         case 'UPDATE':
-          if (newData) {
+          if (normalizedNew) {
             setUpdatedTokens((prev) => {
               // Remove old entry if exists, add new one
-              const filtered = prev.filter((t) => t.id !== newData.id);
-              return [newData, ...filtered].slice(0, maxUpdates);
+              const filtered = prev.filter((t) => t.id !== normalizedNew.id);
+              return [normalizedNew, ...filtered].slice(0, maxUpdates);
             });
-            onTokenUpdateCallback?.(newData, oldData);
+            onTokenUpdateCallback?.(normalizedNew, normalizedOld);
           }
           break;
 
         case 'DELETE':
-          if (oldData) {
-            // Remove from lists
-            setNewTokens((prev) => prev.filter((t) => t.id !== oldData.id));
-            setUpdatedTokens((prev) => prev.filter((t) => t.id !== oldData.id));
-            onTokenDeleteCallback?.(oldData);
-          }
+          setNewTokens((prev) => prev.filter((t) => t.id !== tokenData.id));
+          setUpdatedTokens((prev) => prev.filter((t) => t.id !== tokenData.id));
+          onTokenDeleteCallback?.(tokenData);
           break;
       }
     },
@@ -240,26 +266,17 @@ export function useRealtimeTokens(
       setIsLoading(true);
       setError(null);
 
-      // Build filter string
-      let filter = status ? `status=eq.${status}` : undefined;
-      if (chain && filter) {
-        filter += `,chain=eq.${chain}`;
-      } else if (chain) {
-        filter = `chain=eq.${chain}`;
-      }
-
       // Subscribe to tokens table
-      const subscription = subscribeToTable('tokens', handleTokenChange, filter);
+      const subscription = subscribeToTable('tokens', handleTokenChange);
       subscriptionRef.current = subscription;
 
-      // Check connection status via Supabase realtime
-      const channel = supabase.channel('tokens_changes');
-      channel.on('system', { event: 'connected' }, () => {
+      // Subscribe to channel lifecycle events
+      subscription.channel.on('system', { event: 'connected' }, () => {
         updateConnectionStatus(true);
         setIsLoading(false);
       });
 
-      channel.on('system', { event: 'disconnected' }, () => {
+      subscription.channel.on('system', { event: 'disconnected' }, () => {
         updateConnectionStatus(false);
 
         // Auto-reconnect if enabled
@@ -272,11 +289,13 @@ export function useRealtimeTokens(
         }
       });
 
-      channel.on('system', { event: 'error' }, (error) => {
+      subscription.channel.on('system', { event: 'error' }, (error) => {
         console.error('[useRealtimeTokens] Connection error:', error);
         setError(new Error('Real-time connection error'));
         updateConnectionStatus(false);
       });
+
+      subscription.subscribe();
 
       // Assume connected after subscription
       setTimeout(() => {
@@ -293,8 +312,6 @@ export function useRealtimeTokens(
       updateConnectionStatus(false);
     }
   }, [
-    chain,
-    status,
     handleTokenChange,
     updateConnectionStatus,
     autoReconnect,
@@ -348,3 +365,31 @@ export function useRealtimeTokens(
  * Export default for convenience
  */
 export default useRealtimeTokens;
+
+// =============================================================================
+// HELPERS
+// =============================================================================
+
+function normalizeTokenStandard(value: string): TokenStandard {
+  const normalized = value.toLowerCase().replace(/[_\s]/g, '-');
+  switch (normalized) {
+    case 'spl':
+    case 'spl-token':
+      return 'spl-token';
+    case 'erc20':
+    case 'erc-20':
+      return 'erc20';
+    case 'bep20':
+    case 'bep-20':
+      return 'bep20';
+    default:
+      return 'spl-token';
+  }
+}
+
+function normalizeTokenRow(row: Tables<'tokens'>['Row']): Token {
+  return {
+    ...row,
+    token_standard: normalizeTokenStandard(row.token_standard),
+  };
+}

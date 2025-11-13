@@ -7,9 +7,6 @@
  * @example Basic token creation
  * ```typescript
  * import { createToken } from '@/lib/solana';
- * import { Keypair } from '@solana/web3.js';
- *
- * const payer = Keypair.generate();
  *
  * const result = await createToken(
  *   {
@@ -24,7 +21,10 @@
  *       console.log(`${progress}%: ${step}`);
  *     },
  *   },
- *   payer
+ *   {
+ *     publicKey: walletPublicKey,
+ *     sendTransaction: walletSendTransaction,
+ *   }
  * );
  *
  * console.log('Token created:', result.mintAddress.toBase58());
@@ -47,7 +47,10 @@
  *     ],
  *     initialSupply: 1000000,
  *   },
- *   payer
+ *   {
+ *     publicKey: walletPublicKey,
+ *     sendTransaction: walletSendTransaction,
+ *   }
  * );
  * ```
  */
@@ -70,6 +73,7 @@ export {
   getMinimumBalanceForRentExemption,
   testConnection,
 } from './connection';
+export type { WalletTransactionSender } from './connection';
 
 // ============================================================================
 // Token Creation Functions

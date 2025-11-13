@@ -46,17 +46,29 @@ export const tokenCreationSchema = z.object({
     .trim(),
 
   // Image file validation
-  image: z
-    .custom<File>()
-    .refine((file) => file instanceof File, 'Image is required')
-    .refine(
-      (file) => file.size <= MAX_IMAGE_SIZE,
-      'Image size must be less than 5MB'
-    )
-    .refine(
-      (file) => ACCEPTED_IMAGE_TYPES.includes(file.type),
-      'Only .jpg, .png, and .webp formats are supported'
-    ),
+  image: z.custom<File>().superRefine((file, ctx) => {
+    if (!(file instanceof File)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Image is required',
+      });
+      return;
+    }
+
+    if (file.size > MAX_IMAGE_SIZE) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Image size must be less than 5MB',
+      });
+    }
+
+    if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Only .jpg, .png, and .webp formats are supported',
+      });
+    }
+  }),
 
   // Total supply validation (1M to 1T)
   totalSupply: z
@@ -64,10 +76,10 @@ export const tokenCreationSchema = z.object({
       required_error: 'Total supply is required',
       invalid_type_error: 'Total supply must be a number',
     })
-    .min(1_000_000, 'Total supply must be at least 1,000,000 (1M)')
-    .max(1_000_000_000_000, 'Total supply must not exceed 1,000,000,000,000 (1T)')
-    .int('Total supply must be a whole number')
-    .positive('Total supply must be positive'),
+    .refine(
+      (val) => [1_000_000_000, 5_000_000_000, 25_000_000_000].includes(val),
+      'Select a valid total supply option'
+    ),
 
   // Website URL validation (optional)
   websiteUrl: z

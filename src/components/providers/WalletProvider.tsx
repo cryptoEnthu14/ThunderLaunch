@@ -113,7 +113,7 @@ export const WalletProvider: FC<WalletProviderProps> = ({ children }) => {
       <SolanaWalletProvider
         wallets={wallets}
         onError={onError}
-        autoConnect={false} // Don't auto-connect to avoid unexpected behavior
+        autoConnect // Required so selecting a wallet in the modal actually triggers adapter.connect()
       >
         <WalletModalProvider>
           {children}

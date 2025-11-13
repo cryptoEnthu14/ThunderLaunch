@@ -1,0 +1,410 @@
+{
+  "address": "6avMmcRVikm9UKbVjWKFvS7tYaaVRWRTPPNXvtPffhwD",
+  "metadata": {
+    "name": "plp",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Protocol Liquidity Program"
+  },
+  "instructions": [
+    {
+      "name": "buy",
+      "discriminator": [
+        102,
+        6,
+        61,
+        18,
+        1,
+        218,
+        235,
+        234
+      ],
+      "accounts": [
+        {
+          "name": "pool",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool.mint",
+                "account": "Pool"
+              }
+            ]
+          }
+        },
+        {
+          "name": "user",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "tokens",
+          "type": "u64"
+        },
+        {
+          "name": "lamports",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "graduate",
+      "discriminator": [
+        45,
+        235,
+        225,
+        181,
+        17,
+        218,
+        64,
+        130
+      ],
+      "accounts": [
+        {
+          "name": "pool",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool.mint",
+                "account": "Pool"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true,
+          "relations": [
+            "pool"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "dex",
+          "type": {
+            "defined": {
+              "name": "GraduationDex"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "init_pool",
+      "discriminator": [
+        116,
+        233,
+        199,
+        204,
+        115,
+        159,
+        171,
+        36
+      ],
+      "accounts": [
+        {
+          "name": "pool",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "args.mint"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority"
+        },
+        {
+          "name": "vault_sol"
+        },
+        {
+          "name": "vault_token"
+        },
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "args",
+          "type": {
+            "defined": {
+              "name": "InitPoolArgs"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "lock_liquidity",
+      "discriminator": [
+        179,
+        201,
+        236,
+        158,
+        212,
+        98,
+        70,
+        182
+      ],
+      "accounts": [
+        {
+          "name": "pool",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool.mint",
+                "account": "Pool"
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true,
+          "relations": [
+            "pool"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "locked",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "sell",
+      "discriminator": [
+        51,
+        230,
+        133,
+        164,
+        1,
+        127,
+        131,
+        173
+      ],
+      "accounts": [
+        {
+          "name": "pool",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool.mint",
+                "account": "Pool"
+              }
+            ]
+          }
+        },
+        {
+          "name": "user",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "tokens",
+          "type": "u64"
+        },
+        {
+          "name": "lamports",
+          "type": "u64"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "Pool",
+      "discriminator": [
+        241,
+        154,
+        109,
+        4,
+        17,
+        177,
+        109,
+        188
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "LiquidityLocked",
+      "msg": "Liquidity is locked"
+    },
+    {
+      "code": 6001,
+      "name": "PoolGraduated",
+      "msg": "Pool already graduated"
+    },
+    {
+      "code": 6002,
+      "name": "Overflow",
+      "msg": "Math overflow"
+    },
+    {
+      "code": 6003,
+      "name": "InsufficientSol",
+      "msg": "Insufficient SOL"
+    },
+    {
+      "code": 6004,
+      "name": "InsufficientTokens",
+      "msg": "Insufficient tokens"
+    }
+  ],
+  "types": [
+    {
+      "name": "GraduationDex",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Raydium"
+          },
+          {
+            "name": "Orca"
+          },
+          {
+            "name": "Jupiter"
+          }
+        ]
+      }
+    },
+    {
+      "name": "InitPoolArgs",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "curve_type",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Pool",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "vault_sol",
+            "type": "pubkey"
+          },
+          {
+            "name": "vault_token",
+            "type": "pubkey"
+          },
+          {
+            "name": "curve_type",
+            "type": "u8"
+          },
+          {
+            "name": "locked",
+            "type": "bool"
+          },
+          {
+            "name": "graduated",
+            "type": "bool"
+          },
+          {
+            "name": "graduation_dex",
+            "type": "u8"
+          },
+          {
+            "name": "total_sol",
+            "type": "u64"
+          },
+          {
+            "name": "total_tokens",
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    }
+  ]
+}

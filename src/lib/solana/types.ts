@@ -60,6 +60,10 @@ export interface CreateTokenConfig {
   image?: File | string;
   /** Initial supply to mint */
   initialSupply?: number;
+  /** Wallet that should own the initial supply (defaults to payer) */
+  owner?: PublicKey;
+  /** Metadata update authority (defaults to owner) */
+  updateAuthority?: PublicKey;
   /** Whether to renounce mint authority after creation */
   renounceMintAuthority?: boolean;
   /** Whether to disable freeze authority */
@@ -159,7 +163,7 @@ export interface MintTokensConfig {
   /** Amount to mint (in token units, not lamports) */
   amount: number;
   /** Mint authority keypair or public key */
-  mintAuthority: PublicKey;
+  mintAuthority?: PublicKey;
   /** Number of decimals for the token */
   decimals?: number;
 }

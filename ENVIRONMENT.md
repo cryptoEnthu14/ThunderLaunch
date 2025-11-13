@@ -115,6 +115,14 @@ NEXT_PUBLIC_ENABLE_NOTIFICATIONS=true    # Toast notifications
 NEXT_PUBLIC_ENABLE_REFERRALS=false       # Referral system
 ```
 
+### Liquidity & Graduation
+
+Configure the default DEX where liquidity migrates after graduation:
+
+```env
+NEXT_PUBLIC_GRADUATION_DEX=raydium   # raydium | orca | jupiter
+```
+
 ### Platform Configuration
 
 ```env
@@ -123,6 +131,22 @@ NEXT_PUBLIC_MIN_LIQUIDITY=1000           # Minimum liquidity in SOL
 NEXT_PUBLIC_MAX_TOKEN_SUPPLY=1000000000  # Maximum token supply
 NEXT_PUBLIC_MIN_TOKEN_SUPPLY=1000        # Minimum token supply
 ```
+
+### API & JWT Secrets
+
+These values secure every server-to-server workflow (token creation, trade ingestion, security scans, cron jobs, etc.). **They are required for any protected API route.**
+
+```env
+API_SECRET_KEY=your-long-random-server-key
+JWT_SECRET=another-long-random-secret
+```
+
+- Generate both with `openssl rand -hex 32` (or any secure random generator).
+- Keep them server-side only (no `NEXT_PUBLIC_` prefix).
+- Every request to protected endpoints must send `X-API-Key: $API_SECRET_KEY` (or `Authorization: Bearer $API_SECRET_KEY`).
+- JWT support will reuse `JWT_SECRET` once user authentication is added—set it now to avoid breaking future releases.
+
+> **Reminder:** When you add new API routes or background jobs, decide whether they need the shared API key and/or JWT auth, and update the implementation accordingly.
 
 ### Analytics (Optional)
 

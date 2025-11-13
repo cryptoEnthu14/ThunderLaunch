@@ -8,7 +8,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { runSecurityCheck, getCachedScanResult } from '@/lib/security';
+import { runSecurityCheck, getCachedScanResult, validateApiKey } from '@/lib/security';
 import { createSecurityCheck, getSecurityCheck } from '@/lib/supabase/queries';
 
 /**
@@ -58,6 +58,17 @@ function getClientIp(request: NextRequest): string {
  */
 export async function POST(request: NextRequest) {
   try {
+    const authResult = validateApiKey(request);
+    if (!authResult.valid) {
+      return NextResponse.json(
+        {
+          error: 'Unauthorized',
+          message: authResult.message,
+        },
+        { status: authResult.status ?? 401 }
+      );
+    }
+
     // Check rate limit
     const clientIp = getClientIp(request);
     if (!checkRateLimit(clientIp)) {

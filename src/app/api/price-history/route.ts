@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServiceRoleClient, supabase as anonClient } from '@/lib/supabase/client';
 
 const FIELDS =
-  'token_id,timestamp,price_usd,price_native,volume,market_cap,liquidity';
+  'token_id,token_address,timestamp,price_usd,price_native,volume_usd,market_cap,liquidity';
 const DEFAULT_LIMIT = 500;
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
@@ -51,10 +51,22 @@ export async function GET(request: Request) {
     );
   }
 
+  const normalizedData =
+    data?.map((point) => ({
+      token_id: point.token_id,
+      token_address: point.token_address,
+      timestamp: point.timestamp,
+      price_usd: Number(point.price_usd),
+      price_native: Number(point.price_native),
+      volume: Number(point.volume_usd ?? 0),
+      market_cap: Number(point.market_cap ?? 0),
+      liquidity: Number(point.liquidity ?? 0),
+    })) ?? [];
+
   return NextResponse.json(
     {
       success: true,
-      data: data ?? [],
+      data: normalizedData,
     },
     { status: 200 }
   );

@@ -10,8 +10,6 @@ import {
   Keypair,
   SystemProgram,
   Transaction,
-  TransactionInstruction,
-  SYSVAR_RENT_PUBKEY,
 } from '@solana/web3.js';
 import {
   TOKEN_PROGRAM_ID,
@@ -26,23 +24,17 @@ import {
   createSetAuthorityInstruction,
   AuthorityType,
 } from '@solana/spl-token';
-import { createUmi } from '@metaplex-foundation/umi-bundle-defaults';
 import {
-  createMetadataAccountV3,
-  mplTokenMetadata,
-  findMetadataPda,
-  CreateMetadataAccountV3InstructionAccounts,
-  CreateMetadataAccountV3InstructionArgs,
+  PROGRAM_ID as TOKEN_METADATA_PROGRAM_ID,
+  createCreateMetadataAccountV3Instruction,
 } from '@metaplex-foundation/mpl-token-metadata';
-import {
-  publicKey as umiPublicKey,
-  generateSigner,
-  signerIdentity,
-  createSignerFromKeypair,
-  Umi,
-} from '@metaplex-foundation/umi';
 
-import { connection, sendAndConfirmTransaction, getMinimumBalanceForRentExemption } from './connection';
+import {
+  connection,
+  sendAndConfirmWithWallet,
+  getMinimumBalanceForRentExemption,
+  WalletTransactionSender,
+} from './connection';
 import { uploadTokenMetadata } from './uploadMetadata';
 import {
   CreateTokenConfig,
@@ -61,14 +53,14 @@ import {
  * This function creates a new SPL token mint with the specified decimals.
  * It does NOT create token accounts or mint tokens - use createTokenAccount and mintTokens for that.
  *
- * @param payer - Keypair that will pay for and own the mint
+ * @param wallet - Wallet adapter that will pay for and own the mint
  * @param decimals - Number of decimals for the token (default: 9)
- * @param mintAuthority - Optional custom mint authority (defaults to payer)
+ * @param mintAuthority - Optional custom mint authority (defaults to wallet)
  * @param freezeAuthority - Optional freeze authority (null to disable freezing)
  * @returns Object containing mint public key and transaction signature
  */
 export async function createMint(
-  payer: Keypair,
+  wallet: WalletTransactionSender,
   decimals: number = 9,
   mintAuthority?: PublicKey,
   freezeAuthority?: PublicKey | null
@@ -81,14 +73,15 @@ export async function createMint(
     const lamports = await getMinimumBalanceForRentExemption(MintLayout.span);
 
     // Set authorities
-    const mintAuthorityPubkey = mintAuthority || payer.publicKey;
-    const freezeAuthorityPubkey = freezeAuthority === null ? null : (freezeAuthority || payer.publicKey);
+    const mintAuthorityPubkey = mintAuthority || wallet.publicKey;
+    const freezeAuthorityPubkey =
+      freezeAuthority === null ? null : freezeAuthority || wallet.publicKey;
 
     // Create transaction
     const transaction = new Transaction().add(
       // Create account
       SystemProgram.createAccount({
-        fromPubkey: payer.publicKey,
+        fromPubkey: wallet.publicKey,
         newAccountPubkey: mintKeypair.publicKey,
         space: MintLayout.span,
         lamports,
@@ -105,10 +98,9 @@ export async function createMint(
     );
 
     // Send and confirm transaction
-    const signature = await sendAndConfirmTransaction(
-      transaction,
-      [payer, mintKeypair]
-    );
+    const signature = await sendAndConfirmWithWallet(transaction, wallet, [
+      mintKeypair,
+    ]);
 
     return {
       mint: mintKeypair.publicKey,
@@ -134,12 +126,12 @@ export async function createMint(
  * ATAs are deterministic addresses derived from the owner and mint.
  *
  * @param config - Token account configuration
- * @param payer - Keypair that will pay for the account creation
+ * @param wallet - Wallet adapter that will pay for the account creation
  * @returns Token account public key and transaction signature
  */
 export async function createTokenAccount(
   config: CreateTokenAccountConfig,
-  payer: Keypair
+  wallet: WalletTransactionSender
 ): Promise<{ tokenAccount: PublicKey; signature: string }> {
   const { mint, owner, useAssociatedTokenAccount = true } = config;
 
@@ -169,7 +161,7 @@ export async function createTokenAccount(
       // Create associated token account
       const transaction = new Transaction().add(
         createAssociatedTokenAccountInstruction(
-          payer.publicKey,
+          wallet.publicKey,
           associatedTokenAccount,
           owner,
           mint,
@@ -178,7 +170,7 @@ export async function createTokenAccount(
         )
       );
 
-      const signature = await sendAndConfirmTransaction(transaction, [payer]);
+      const signature = await sendAndConfirmWithWallet(transaction, wallet);
 
       return {
         tokenAccount: associatedTokenAccount,
@@ -208,14 +200,20 @@ export async function createTokenAccount(
  * Mint tokens to a destination account
  *
  * @param config - Minting configuration
- * @param payer - Keypair that will pay for the transaction (must be mint authority)
+ * @param wallet - Wallet adapter that will pay for the transaction (must be mint authority)
  * @returns Transaction signature
  */
 export async function mintTokens(
   config: MintTokensConfig,
-  payer: Keypair
+  wallet: WalletTransactionSender
 ): Promise<string> {
-  const { mint, destination, amount, decimals = 9 } = config;
+  const {
+    mint,
+    destination,
+    amount,
+    decimals = 9,
+    mintAuthority,
+  } = config;
 
   try {
     // Validate amount
@@ -234,7 +232,7 @@ export async function mintTokens(
       createMintToInstruction(
         mint,
         destination,
-        payer.publicKey, // Mint authority
+        mintAuthority || wallet.publicKey,
         amountInTokenUnits,
         [],
         TOKEN_PROGRAM_ID
@@ -242,7 +240,7 @@ export async function mintTokens(
     );
 
     // Send and confirm transaction
-    const signature = await sendAndConfirmTransaction(transaction, [payer]);
+    const signature = await sendAndConfirmWithWallet(transaction, wallet);
 
     return signature;
   } catch (error) {
@@ -265,12 +263,12 @@ export async function mintTokens(
  * The metadata includes name, symbol, and URI pointing to off-chain JSON metadata.
  *
  * @param config - Metadata configuration
- * @param payer - Keypair that will pay for the transaction and be the update authority
+ * @param wallet - Wallet adapter that will pay for the transaction and be the update authority
  * @returns Metadata account public key and transaction signature
  */
 export async function setTokenMetadata(
   config: SetMetadataConfig,
-  payer: Keypair
+  wallet: WalletTransactionSender
 ): Promise<{ metadataAddress: PublicKey; signature: string }> {
   const {
     mint,
@@ -325,54 +323,53 @@ export async function setTokenMetadata(
       }
     }
 
-    // Initialize Umi
-    const umi = createUmi(connection.rpcEndpoint);
-    umi.use(mplTokenMetadata());
+    const [metadataAddress] = PublicKey.findProgramAddressSync(
+      [
+        Buffer.from('metadata'),
+        TOKEN_METADATA_PROGRAM_ID.toBuffer(),
+        mint.toBuffer(),
+      ],
+      TOKEN_METADATA_PROGRAM_ID
+    );
 
-    // Create signer from keypair
-    const umiKeypair = umi.eddsa.createKeypairFromSecretKey(payer.secretKey);
-    const umiSigner = createSignerFromKeypair(umi, umiKeypair);
-    umi.use(signerIdentity(umiSigner));
+    const creatorsData =
+      creators?.map((creator) => ({
+        address: creator.address,
+        verified: creator.verified,
+        share: creator.share,
+      })) || null;
 
-    // Find metadata PDA
-    const mintPubkey = umiPublicKey(mint.toBase58());
-    const [metadataPda] = findMetadataPda(umi, { mint: mintPubkey });
-
-    // Prepare creators array for Metaplex
-    const metaplexCreators = creators?.map(creator => ({
-      address: umiPublicKey(creator.address.toBase58()),
-      verified: creator.verified,
-      share: creator.share,
-    }));
-
-    // Create metadata account
-    const result = await createMetadataAccountV3(umi, {
-      metadata: metadataPda,
-      mint: mintPubkey,
-      mintAuthority: umiSigner,
-      payer: umiSigner,
-      updateAuthority: updateAuthority
-        ? umiPublicKey(updateAuthority.toBase58())
-        : umiSigner.publicKey,
-      data: {
-        name,
-        symbol,
-        uri,
-        sellerFeeBasisPoints,
-        creators: metaplexCreators || null,
-        collection: null,
-        uses: null,
+    const instruction = createCreateMetadataAccountV3Instruction(
+      {
+        metadata: metadataAddress,
+        mint,
+        mintAuthority: wallet.publicKey,
+        payer: wallet.publicKey,
+        updateAuthority: updateAuthority || wallet.publicKey,
       },
-      isMutable,
-      collectionDetails: null,
-    }).sendAndConfirm(umi);
+      {
+        createMetadataAccountArgsV3: {
+          data: {
+            name,
+            symbol,
+            uri,
+            sellerFeeBasisPoints,
+            creators: creatorsData,
+            collection: null,
+            uses: null,
+          },
+          isMutable,
+          collectionDetails: null,
+        },
+      }
+    );
 
-    // Convert metadata address back to PublicKey
-    const metadataAddress = new PublicKey(metadataPda);
+    const transaction = new Transaction().add(instruction);
+    const signature = await sendAndConfirmWithWallet(transaction, wallet);
 
     return {
       metadataAddress,
-      signature: Buffer.from(result.signature).toString('base64'),
+      signature,
     };
   } catch (error) {
     if (error instanceof TokenError) {
@@ -399,13 +396,13 @@ export async function setTokenMetadata(
  */
 export async function renounceMintAuthority(
   mint: PublicKey,
-  currentAuthority: Keypair
+  wallet: WalletTransactionSender
 ): Promise<string> {
   try {
     const transaction = new Transaction().add(
       createSetAuthorityInstruction(
         mint,
-        currentAuthority.publicKey,
+        wallet.publicKey,
         AuthorityType.MintTokens,
         null, // Setting to null renounces authority
         [],
@@ -413,7 +410,7 @@ export async function renounceMintAuthority(
       )
     );
 
-    const signature = await sendAndConfirmTransaction(transaction, [currentAuthority]);
+    const signature = await sendAndConfirmWithWallet(transaction, wallet);
 
     return signature;
   } catch (error) {
@@ -441,12 +438,12 @@ export async function renounceMintAuthority(
  * 6. Optionally renounce mint authority
  *
  * @param config - Complete token creation configuration
- * @param payer - Keypair that will pay for all transactions and own the token
+ * @param wallet - Wallet adapter that will pay for all transactions and own the token
  * @returns Complete token creation result
  */
 export async function createToken(
   config: CreateTokenConfig,
-  payer: Keypair
+  wallet: WalletTransactionSender
 ): Promise<CreateTokenResult> {
   const {
     name,
@@ -455,12 +452,30 @@ export async function createToken(
     decimals = 9,
     image,
     initialSupply,
+    owner,
+    updateAuthority,
     renounceMintAuthority: shouldRenounceMintAuthority = false,
     disableFreezeAuthority = true,
     externalUrl,
     attributes,
     onProgress,
   } = config;
+
+  const ownerPublicKey = owner || wallet.publicKey;
+  const metadataAuthority = updateAuthority || ownerPublicKey;
+  const offChainCreators = [
+    {
+      address: metadataAuthority.toBase58(),
+      share: 100,
+    },
+  ];
+  const onChainCreators = [
+    {
+      address: metadataAuthority,
+      verified: metadataAuthority.equals(wallet.publicKey),
+      share: 100,
+    },
+  ];
 
   const progress: ProgressCallback = onProgress || (() => {});
   const signatures: CreateTokenResult['signatures'] = {};
@@ -502,12 +517,7 @@ export async function createToken(
           {
             externalUrl,
             attributes,
-            creators: [
-              {
-                address: payer.publicKey.toBase58(),
-                share: 100,
-              },
-            ],
+            creators: offChainCreators,
           }
         );
         metadataUri = metadataResult.metadataUri;
@@ -524,10 +534,10 @@ export async function createToken(
     // Step 2: Create mint
     progress('Creating token mint...', 30);
     const { mint, signature: createMintSig } = await createMint(
-      payer,
+      wallet,
       decimals,
-      payer.publicKey,
-      disableFreezeAuthority ? null : payer.publicKey
+      wallet.publicKey,
+      disableFreezeAuthority ? null : wallet.publicKey
     );
     signatures.createMint = createMintSig;
     progress('Token mint created', 45);
@@ -543,17 +553,11 @@ export async function createToken(
             uri: metadataUri,
             name,
             symbol,
-            updateAuthority: payer.publicKey,
-            creators: [
-              {
-                address: payer.publicKey,
-                verified: true,
-                share: 100,
-              },
-            ],
+            updateAuthority: metadataAuthority,
+            creators: onChainCreators,
             isMutable: true,
           },
-          payer
+          wallet
         );
         metadataAddress = metadataResult.metadataAddress;
         signatures.createMetadata = metadataResult.signature;
@@ -571,9 +575,9 @@ export async function createToken(
     const { tokenAccount, signature: createAccountSig } = await createTokenAccount(
       {
         mint,
-        owner: payer.publicKey,
+        owner: ownerPublicKey,
       },
-      payer
+      wallet
     );
     if (createAccountSig) {
       signatures.createTokenAccount = createAccountSig;
@@ -589,10 +593,10 @@ export async function createToken(
           mint,
           destination: tokenAccount,
           amount: initialSupply,
-          mintAuthority: payer.publicKey,
+          mintAuthority: wallet.publicKey,
           decimals,
         },
-        payer
+        wallet
       );
       signatures.mintTokens = mintTokensSig;
       progress('Initial supply minted', 90);
@@ -603,7 +607,7 @@ export async function createToken(
     // Step 6: Renounce mint authority (if requested)
     if (shouldRenounceMintAuthority) {
       progress('Renouncing mint authority...', 95);
-      const renounceSig = await renounceMintAuthority(mint, payer);
+      const renounceSig = await renounceMintAuthority(mint, wallet);
       signatures.renounceMintAuthority = renounceSig;
       progress('Mint authority renounced', 98);
     }

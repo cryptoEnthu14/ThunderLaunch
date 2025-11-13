@@ -6,6 +6,7 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 import { env } from '@/config/env';
 import type { Database } from './database.types';
 
@@ -233,28 +234,27 @@ export function subscribeToTable<T extends keyof Database['public']['Tables']>(
     old: Database['public']['Tables'][T]['Row'] | null;
   }) => void,
   filter?: string
-) {
-  const channel = supabase
-    .channel(`${table}_changes`)
-    .on(
-      'postgres_changes',
-      {
-        event: '*',
-        schema: 'public',
-        table: table as string,
-        filter: filter,
-      },
-      (payload) => {
-        callback({
-          eventType: payload.eventType as 'INSERT' | 'UPDATE' | 'DELETE',
-          new: payload.new as Database['public']['Tables'][T]['Row'] | null,
-          old: payload.old as Database['public']['Tables'][T]['Row'] | null,
-        });
-      }
-    )
-    .subscribe();
+): TableSubscription {
+  const channel = supabase.channel(`${table}_changes`).on(
+    'postgres_changes',
+    {
+      event: '*',
+      schema: 'public',
+      table: table as string,
+      filter,
+    },
+    (payload) => {
+      callback({
+        eventType: payload.eventType as 'INSERT' | 'UPDATE' | 'DELETE',
+        new: payload.new as Database['public']['Tables'][T]['Row'] | null,
+        old: payload.old as Database['public']['Tables'][T]['Row'] | null,
+      });
+    }
+  );
 
   return {
+    channel,
+    subscribe: () => channel.subscribe(),
     unsubscribe: () => {
       supabase.removeChannel(channel);
     },
@@ -335,3 +335,8 @@ export async function deleteFile(
 // =============================================================================
 
 export default supabase;
+export type TableSubscription = {
+  channel: RealtimeChannel;
+  subscribe: () => RealtimeChannel;
+  unsubscribe: () => void;
+};

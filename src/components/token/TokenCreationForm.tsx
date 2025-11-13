@@ -29,6 +29,12 @@ import { Card, CardHeader, CardBody, CardFooter, CardTitle, CardDescription } fr
 import { cn } from '@/lib/utils';
 import { Upload, X, Image as ImageIcon, Globe, Twitter, Send } from 'lucide-react';
 
+const SUPPLY_OPTIONS = [
+  { label: '1 Billion (1,000,000,000)', value: 1_000_000_000 },
+  { label: '5 Billion (5,000,000,000)', value: 5_000_000_000 },
+  { label: '25 Billion (25,000,000,000)', value: 25_000_000_000 },
+];
+
 export interface TokenCreationFormProps {
   /** Form submission handler */
   onSubmit: (data: TokenCreationFormData) => Promise<void>;
@@ -70,7 +76,7 @@ export function TokenCreationForm({
       name: defaultValues?.name || '',
       symbol: defaultValues?.symbol || '',
       description: defaultValues?.description || '',
-      totalSupply: defaultValues?.totalSupply || 1000000,
+      totalSupply: defaultValues?.totalSupply ?? SUPPLY_OPTIONS[0].value,
       websiteUrl: defaultValues?.websiteUrl || '',
       twitterUrl: defaultValues?.twitterUrl || '',
       telegramUrl: defaultValues?.telegramUrl || '',
@@ -81,6 +87,7 @@ export function TokenCreationForm({
   const name = watch('name') || '';
   const symbol = watch('symbol') || '';
   const description = watch('description') || '';
+  const totalSupplyValue = watch('totalSupply');
 
   /**
    * Handle image file selection
@@ -243,22 +250,42 @@ export function TokenCreationForm({
 
             {/* Total Supply */}
             <div>
-              <Input
-                label="Total Supply"
-                type="number"
-                placeholder="1000000"
-                error={errors.totalSupply?.message}
-                helperText="Enter a value between 1,000,000 (1M) and 1,000,000,000,000 (1T)"
-                required
-                fullWidth
-                {...register('totalSupply', {
-                  valueAsNumber: true,
-                })}
-              />
-              {watch('totalSupply') && !errors.totalSupply && (
-                <div className="mt-2 text-xs text-gray-400">
-                  Formatted: {formatNumber(watch('totalSupply'))} tokens
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Total Token Supply
+              </label>
+              <div className="relative">
+                <select
+                  className={cn(
+                    'w-full bg-gray-900 border rounded-lg px-4 py-2 text-white appearance-none',
+                    'focus:outline-none focus:ring-2 focus:ring-thunder-blue focus:border-transparent',
+                    errors.totalSupply ? 'border-danger-red' : 'border-gray-700'
+                  )}
+                  value={totalSupplyValue?.toString() ?? ''}
+                  onChange={(event) => {
+                    const value = Number(event.target.value);
+                    setValue('totalSupply', value, { shouldValidate: true });
+                  }}
+                  onBlur={() => trigger('totalSupply')}
+                >
+                  {SUPPLY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value.toString()}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-gray-400 text-sm">
+                  ▼
                 </div>
+              </div>
+              {errors.totalSupply ? (
+                <p className="mt-2 text-xs text-danger-red">
+                  {errors.totalSupply.message}
+                </p>
+              ) : (
+                <p className="mt-2 text-xs text-gray-400">
+                  Formatted:{' '}
+                  {totalSupplyValue ? formatNumber(totalSupplyValue) : '-'} tokens
+                </p>
               )}
             </div>
           </div>

@@ -14,9 +14,17 @@ import {
   TransactionSignature,
   SendOptions,
   Keypair,
-  ConfirmOptions,
 } from '@solana/web3.js';
 import { TokenError, TokenErrorType, ConfirmationConfig } from './types';
+
+export interface WalletTransactionSender {
+  publicKey: PublicKey;
+  sendTransaction: (
+    transaction: Transaction,
+    connection: Connection,
+    options?: SendOptions
+  ) => Promise<TransactionSignature>;
+}
 
 /**
  * Default commitment level for transactions
@@ -242,6 +250,70 @@ export async function sendAndConfirmTransaction(
 
     if (errorMessage.includes('insufficient funds') ||
         errorMessage.includes('insufficient lamports')) {
+      throw new TokenError(
+        TokenErrorType.INSUFFICIENT_FUNDS,
+        'Insufficient funds to complete transaction',
+        error as Error
+      );
+    }
+
+    throw new TokenError(
+      TokenErrorType.TRANSACTION_FAILED,
+      `Transaction failed: ${(error as Error).message}`,
+      error as Error
+    );
+  }
+}
+
+/**
+ * Send and confirm a transaction using a wallet adapter (client-side).
+ *
+ * @param transaction - Transaction to send
+ * @param wallet - Wallet adapter with sendTransaction capability
+ * @param partialSigners - Any additional signers (e.g., newly generated keypairs)
+ * @param options - Send options
+ */
+export async function sendAndConfirmWithWallet(
+  transaction: Transaction,
+  wallet: WalletTransactionSender,
+  partialSigners: Keypair[] = [],
+  options?: SendOptions
+): Promise<TransactionSignature> {
+  try {
+    const { blockhash, lastValidBlockHeight } =
+      await connection.getLatestBlockhash(DEFAULT_COMMITMENT);
+
+    transaction.recentBlockhash = blockhash;
+    transaction.lastValidBlockHeight = lastValidBlockHeight;
+    transaction.feePayer = wallet.publicKey;
+
+    if (partialSigners.length > 0) {
+      transaction.partialSign(...partialSigners);
+    }
+
+    const signature = await wallet.sendTransaction(
+      transaction,
+      connection,
+      options
+    );
+
+    await confirmTransaction(signature, {
+      maxRetries: 30,
+      timeout: 60000,
+    });
+
+    return signature;
+  } catch (error) {
+    if (error instanceof TokenError) {
+      throw error;
+    }
+
+    const errorMessage = (error as Error).message?.toLowerCase() || '';
+
+    if (
+      errorMessage.includes('insufficient funds') ||
+      errorMessage.includes('insufficient lamports')
+    ) {
       throw new TokenError(
         TokenErrorType.INSUFFICIENT_FUNDS,
         'Insufficient funds to complete transaction',

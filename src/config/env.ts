@@ -12,6 +12,7 @@
 export type SolanaNetwork = 'devnet' | 'testnet' | 'mainnet-beta';
 export type Environment = 'development' | 'staging' | 'production';
 export type Commitment = 'processed' | 'confirmed' | 'finalized';
+export type GraduationDestination = 'raydium' | 'orca' | 'jupiter';
 
 // =============================================================================
 // ENVIRONMENT VARIABLES
@@ -94,6 +95,11 @@ export const env = {
     mockTransactions: process.env.DEV_MOCK_TRANSACTIONS === 'true',
     debug: process.env.DEBUG === 'true' || process.env.NEXT_PUBLIC_DEBUG === 'true',
   },
+
+  // Graduation / Liquidity
+  graduation: {
+    destination: (process.env.NEXT_PUBLIC_GRADUATION_DEX || 'raydium') as GraduationDestination,
+  },
 } as const;
 
 // =============================================================================
@@ -136,6 +142,11 @@ export function validateEnv() {
   const validNetworks: SolanaNetwork[] = ['devnet', 'testnet', 'mainnet-beta'];
   if (!validNetworks.includes(env.solana.network)) {
     errors.push(`Invalid SOLANA_NETWORK: ${env.solana.network}. Must be one of: ${validNetworks.join(', ')}`);
+  }
+
+  const validDex: GraduationDestination[] = ['raydium', 'orca', 'jupiter'];
+  if (!validDex.includes(env.graduation.destination)) {
+    errors.push(`Invalid NEXT_PUBLIC_GRADUATION_DEX: ${env.graduation.destination}. Must be one of: ${validDex.join(', ')}`);
   }
 
   // Throw error if any validation failed

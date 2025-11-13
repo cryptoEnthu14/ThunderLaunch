@@ -29,6 +29,72 @@ export interface QueryResult<T> {
   error: string | null;
 }
 
+/**
+ * Find user ID by wallet address without creating a new record.
+ */
+async function findUserIdByWallet(
+  walletAddress: string
+): Promise<QueryResult<string>> {
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .select('id')
+      .eq('wallet_address', walletAddress)
+      .single();
+
+    if (error) {
+      if ((error as { code?: string }).code === 'PGRST116') {
+        return { data: null, error: null };
+      }
+
+      console.error('[watchlist] Failed to find user:', error);
+      return { data: null, error: error.message };
+    }
+
+    return { data: data?.id ?? null, error: null };
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+    console.error('[watchlist] Failed to find user:', errorMessage);
+    return { data: null, error: errorMessage };
+  }
+}
+
+/**
+ * Get or create a user record for the provided wallet address.
+ */
+async function getOrCreateUserId(
+  walletAddress: string
+): Promise<QueryResult<string>> {
+  const { data: userId, error } = await findUserIdByWallet(walletAddress);
+
+  if (error) {
+    return { data: null, error };
+  }
+
+  if (userId) {
+    return { data: userId, error: null };
+  }
+
+  try {
+    const { data, error: insertError } = await supabase
+      .from('users')
+      .insert({ wallet_address: walletAddress })
+      .select('id')
+      .single();
+
+    if (insertError) {
+      console.error('[watchlist] Failed to create user:', insertError);
+      return { data: null, error: insertError.message };
+    }
+
+    return { data: data?.id ?? null, error: null };
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+    console.error('[watchlist] Failed to create user:', errorMessage);
+    return { data: null, error: errorMessage };
+  }
+}
+
 // =============================================================================
 // WATCHLIST OPERATIONS
 // =============================================================================
@@ -42,13 +108,19 @@ export async function addToWatchlist(
   tokenAddress: string
 ): Promise<QueryResult<WatchlistItem>> {
   try {
+    const { data: userId, error: userError } = await getOrCreateUserId(walletAddress);
+
+    if (userError || !userId) {
+      return { data: null, error: userError || 'Unable to resolve user' };
+    }
+
     // Check if already in watchlist
     const { data: existing } = await supabase
       .from('watchlist')
-      .select('id')
-      .eq('wallet_address', walletAddress)
+      .select('token_id')
+      .eq('user_id', userId)
       .eq('token_id', tokenId)
-      .single();
+      .maybeSingle();
 
     if (existing) {
       return {
@@ -61,11 +133,10 @@ export async function addToWatchlist(
     const { data, error } = await supabase
       .from('watchlist')
       .insert({
-        wallet_address: walletAddress,
+        user_id: userId,
         token_id: tokenId,
-        token_address: tokenAddress,
       })
-      .select()
+      .select('user_id, token_id, created_at')
       .single();
 
     if (error) {
@@ -73,7 +144,17 @@ export async function addToWatchlist(
       return { data: null, error: error.message };
     }
 
-    return { data: data as WatchlistItem, error: null };
+    return {
+      data: {
+        id: `${userId}:${tokenId}`,
+        user_id: data.user_id,
+        wallet_address: walletAddress,
+        token_id: data.token_id,
+        token_address: tokenAddress,
+        created_at: data.created_at,
+      },
+      error: null,
+    };
   } catch (err) {
     const error = err instanceof Error ? err.message : 'Unknown error';
     console.error('[addToWatchlist] Exception:', error);
@@ -89,10 +170,20 @@ export async function removeFromWatchlist(
   tokenId: string
 ): Promise<QueryResult<boolean>> {
   try {
+    const { data: userId, error: userError } = await findUserIdByWallet(walletAddress);
+
+    if (userError) {
+      return { data: null, error: userError };
+    }
+
+    if (!userId) {
+      return { data: true, error: null };
+    }
+
     const { error } = await supabase
       .from('watchlist')
       .delete()
-      .eq('wallet_address', walletAddress)
+      .eq('user_id', userId)
       .eq('token_id', tokenId);
 
     if (error) {
@@ -116,12 +207,22 @@ export async function isInWatchlist(
   tokenId: string
 ): Promise<QueryResult<boolean>> {
   try {
+    const { data: userId, error: userError } = await findUserIdByWallet(walletAddress);
+
+    if (userError) {
+      return { data: null, error: userError };
+    }
+
+    if (!userId) {
+      return { data: false, error: null };
+    }
+
     const { data, error } = await supabase
       .from('watchlist')
-      .select('id')
-      .eq('wallet_address', walletAddress)
+      .select('token_id')
+      .eq('user_id', userId)
       .eq('token_id', tokenId)
-      .single();
+      .maybeSingle();
 
     if (error && error.code !== 'PGRST116') {
       // PGRST116 = no rows returned
@@ -150,6 +251,22 @@ export async function getWatchlist(
   } = {}
 ): Promise<QueryResult<{ items: WatchlistItemWithToken[]; total: number }>> {
   try {
+    const { data: userId, error: userError } = await findUserIdByWallet(walletAddress);
+
+    if (userError) {
+      return { data: null, error: userError };
+    }
+
+    if (!userId) {
+      return {
+        data: {
+          items: [],
+          total: 0,
+        },
+        error: null,
+      };
+    }
+
     const {
       page = 1,
       limit = 20,
@@ -164,33 +281,24 @@ export async function getWatchlist(
       .from('watchlist')
       .select(
         `
-        id,
         user_id,
-        wallet_address,
         token_id,
-        token_address,
         created_at,
         tokens (*)
       `,
         { count: 'exact' }
       )
-      .eq('wallet_address', walletAddress);
+      .eq('user_id', userId);
 
     // Apply sorting based on sortBy
     if (sortBy === 'created_at') {
       query = query.order('created_at', { ascending: sortOrder === 'asc' });
+    } else {
+      query = query.order('created_at', { ascending: false });
     }
 
-    // Get total count
-    const { count, error: countError } = await query;
-
-    if (countError) {
-      console.error('[getWatchlist] Count error:', countError);
-      return { data: null, error: countError.message };
-    }
-
-    // Get items with pagination
-    const { data, error } = await query.range(offset, offset + limit - 1);
+    // Execute query with pagination
+    const { data, error, count } = await query.range(offset, offset + limit - 1);
 
     if (error) {
       console.error('[getWatchlist] Error:', error);
@@ -199,11 +307,11 @@ export async function getWatchlist(
 
     // Map and sort the results
     let items = (data || []).map((item: any) => ({
-      id: item.id,
+      id: `${item.user_id}:${item.token_id}`,
       user_id: item.user_id,
-      wallet_address: item.wallet_address,
+      wallet_address: walletAddress,
       token_id: item.token_id,
-      token_address: item.token_address,
+      token_address: item.tokens?.mint_address || '',
       created_at: item.created_at,
       token: item.tokens,
     })) as WatchlistItemWithToken[];
@@ -258,10 +366,20 @@ export async function getWatchlistCount(
   walletAddress: string
 ): Promise<QueryResult<number>> {
   try {
+    const { data: userId, error: userError } = await findUserIdByWallet(walletAddress);
+
+    if (userError) {
+      return { data: null, error: userError };
+    }
+
+    if (!userId) {
+      return { data: 0, error: null };
+    }
+
     const { count, error } = await supabase
       .from('watchlist')
       .select('*', { count: 'exact', head: true })
-      .eq('wallet_address', walletAddress);
+      .eq('user_id', userId);
 
     if (error) {
       console.error('[getWatchlistCount] Error:', error);

@@ -17,16 +17,13 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useWallet } from '@solana/wallet-adapter-react';
-import { Keypair } from '@solana/web3.js';
 import { TokenCreationForm } from '@/components/token';
 import { TokenCreationFormData } from '@/lib/validation/tokenSchema';
 import { createToken } from '@/lib/solana/createToken';
-import { createToken as saveTokenToDatabase, createSecurityCheck } from '@/lib/supabase/queries';
+import type { WalletTransactionSender } from '@/lib/solana/connection';
 import { Card, CardHeader, CardBody, CardTitle, CardDescription } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { AlertCircle, CheckCircle2, Wallet, Loader2, Rocket } from 'lucide-react';
-import bs58 from 'bs58';
 
 /**
  * Extract Twitter handle from URL
@@ -69,7 +66,7 @@ interface CreationProgress {
  */
 export default function LaunchPage() {
   const router = useRouter();
-  const { publicKey, connected, signTransaction } = useWallet();
+  const { publicKey, connected, sendTransaction } = useWallet();
   const [isCreating, setIsCreating] = useState(false);
   const [progress, setProgress] = useState<CreationProgress>({
     step: 'idle',
@@ -91,9 +88,9 @@ export default function LaunchPage() {
   /**
    * Update progress handler
    */
-  const updateProgress = (step: CreationStep, message: string, progressValue: number) => {
-    setProgress({ step, message, progress: progressValue });
-  };
+const updateProgress = (step: CreationStep, message: string, progressValue: number) => {
+  setProgress({ step, message, progress: progressValue });
+};
 
   /**
    * Run security check on token
@@ -140,8 +137,13 @@ export default function LaunchPage() {
    * Handle form submission
    */
   const handleSubmit = async (data: TokenCreationFormData) => {
-    if (!publicKey || !signTransaction) {
+    if (!publicKey) {
       setError('Please connect your wallet to create a token');
+      return;
+    }
+
+    if (!sendTransaction) {
+      setError('Wallet does not support sending transactions');
       return;
     }
 
@@ -149,16 +151,13 @@ export default function LaunchPage() {
     setError(null);
 
     try {
-      // Step 1: Create keypair from wallet
+      // Step 1: Prepare progress
       updateProgress('uploading-metadata', 'Preparing transaction...', 5);
 
-      // For demo purposes, we'll create a new keypair
-      // In production, you'd use the wallet's keypair
-      const payer = Keypair.generate();
-
-      // NOTE: In production, you would:
-      // 1. Request SOL from user's wallet to the payer
-      // 2. Or use the wallet's keypair directly (requires adapter support)
+      const walletAdapter: WalletTransactionSender = {
+        publicKey,
+        sendTransaction,
+      };
 
       // Step 2: Create token on Solana
       updateProgress('uploading-metadata', 'Uploading metadata to IPFS...', 10);
@@ -174,6 +173,8 @@ export default function LaunchPage() {
           renounceMintAuthority: true, // Renounce for safety
           disableFreezeAuthority: true,
           externalUrl: data.websiteUrl,
+          owner: publicKey,
+          updateAuthority: publicKey,
           attributes: [
             ...(data.twitterUrl ? [{ trait_type: 'Twitter', value: data.twitterUrl }] : []),
             ...(data.telegramUrl ? [{ trait_type: 'Telegram', value: data.telegramUrl }] : []),
@@ -191,7 +192,7 @@ export default function LaunchPage() {
             }
           },
         },
-        payer
+        walletAdapter
       );
 
       const mintAddress = result.mintAddress.toBase58();
@@ -200,7 +201,7 @@ export default function LaunchPage() {
       // Step 3: Save to database
       updateProgress('saving-database', 'Saving token information...', 85);
 
-      const tokenRecord = await saveTokenToDatabase({
+      const tokenPayload = {
         mint_address: mintAddress,
         name: data.name,
         symbol: data.symbol,
@@ -219,10 +220,20 @@ export default function LaunchPage() {
         market_cap: 0,
         volume_24h: 0,
         price_change_24h: 0,
+      };
+
+      const tokenResponse = await fetch('/api/tokens', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(tokenPayload),
       });
 
-      if (tokenRecord.error || !tokenRecord.data) {
-        throw new Error(tokenRecord.error || 'Failed to save token to database');
+      const tokenRecord = await tokenResponse.json();
+
+      if (!tokenResponse.ok || !tokenRecord.success || !tokenRecord.data) {
+        throw new Error(tokenRecord.error || tokenRecord.message || 'Failed to save token to database');
       }
 
       // Step 4: Run security check

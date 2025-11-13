@@ -8,9 +8,11 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { validateApiKey } from '@/lib/security';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 /**
  * Rate limiting map
@@ -234,14 +236,95 @@ export async function GET(request: NextRequest) {
 /**
  * POST /api/tokens
  *
- * Create a new token (for future use)
+ * Persist a newly created token to the database.
+ * Uses the Supabase service role key so we can insert despite RLS.
  */
 export async function POST(request: NextRequest) {
-  return NextResponse.json(
-    {
-      error: 'Not implemented',
-      message: 'Token creation via API is not yet implemented',
-    },
-    { status: 501 }
-  );
+  try {
+    const authResult = validateApiKey(request);
+    if (!authResult.valid) {
+      return NextResponse.json(
+        {
+          error: 'Unauthorized',
+          message: authResult.message,
+        },
+        { status: authResult.status ?? 401 }
+      );
+    }
+
+    if (!serviceRoleKey) {
+      return NextResponse.json(
+        {
+          error: 'Service role key missing',
+          message: 'SUPABASE_SERVICE_ROLE_KEY must be set on the server.',
+        },
+        { status: 500 }
+      );
+    }
+
+    const payload = await request.json();
+
+    // Basic payload validation
+    const requiredFields = [
+      'mint_address',
+      'name',
+      'symbol',
+      'creator_wallet',
+      'chain',
+      'total_supply',
+      'decimals',
+    ];
+
+    for (const field of requiredFields) {
+      if (!payload[field]) {
+        return NextResponse.json(
+          {
+            error: 'Missing required field',
+            message: `${field} is required`,
+          },
+          { status: 400 }
+        );
+      }
+    }
+
+    const serviceClient = createClient(supabaseUrl, serviceRoleKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+
+    const { data, error } = await serviceClient
+      .from('tokens')
+      .insert({
+        ...payload,
+        created_at: payload.created_at || new Date().toISOString(),
+        updated_at: payload.updated_at || new Date().toISOString(),
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Failed to insert token:', error);
+      return NextResponse.json(
+        {
+          error: 'Database error',
+          message: 'Failed to save token',
+          details: error.message,
+        },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      data,
+    });
+  } catch (error) {
+    console.error('Token creation API error:', error);
+    return NextResponse.json(
+      {
+        error: 'Unexpected error',
+        message: (error as Error).message,
+      },
+      { status: 500 }
+    );
+  }
 }

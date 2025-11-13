@@ -1,0 +1,29 @@
+[package]
+name = "plp"
+version = "0.1.0"
+description = "Protocol Liquidity Program"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[features]
+no-entrypoint = []
+no-idl = []
+idl-build = ["anchor-lang/idl-build", "anchor-spl/idl-build"]
+idl-build-skip-lint = []
+test-sbf = []
+cpi = ["no-entrypoint"]
+default = ["cpi"]
+custom-heap = []
+custom-panic = []
+anchor-debug = []
+no-log-ix-name = []
+
+[dependencies]
+anchor-lang = "0.31.1"
+anchor-spl = { version = "0.31.1", features = ["token", "associated_token", "metadata"] }
+
+[patch.crates-io]
+anchor-lang = { path = "../../vendor/anchor-lang" }
+anchor-syn = { path = "../../vendor/anchor-syn" }
